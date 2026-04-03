@@ -15,8 +15,11 @@ config = context.config
 # Interpret the config file for Python logging
 fileConfig(config.config_file_name)
 
-# Set sqlalchemy.url from settings
-config.set_main_option('sqlalchemy.url', settings.database_url)
+# Set sqlalchemy.url from settings (use sync driver for Alembic)
+db_url = settings.database_url
+if '+asyncpg' in db_url:
+    db_url = db_url.replace('+asyncpg', '')
+config.set_main_option('sqlalchemy.url', db_url)
 
 target_metadata = Base.metadata
 

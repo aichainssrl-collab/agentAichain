@@ -4,6 +4,7 @@ from celery import current_task
 from agent_aichain.core.database import AsyncSessionLocal
 from agent_aichain.models import Run, Agent, Team, Tenant
 from agent_aichain.workers.agno_wrapper import TenantAwareAgent, TenantAwareTeam
+from agent_aichain.workers.celery_app import celery_app
 from agent_aichain.core.config import settings
 from agent_aichain.core.security import Security
 import structlog

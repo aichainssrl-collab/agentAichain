@@ -5,9 +5,6 @@ celery_app = Celery(
     "agent_aichain",
     broker=settings.celery_broker_url,
     backend=settings.celery_result_backend,
-    include=[
-        "agent_aichain.workers.tasks"
-    ]
 )
 
 celery_app.conf.update(
@@ -21,3 +18,6 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     worker_max_tasks_per_child=1000,
 )
+
+# Import tasks after celery_app is defined to register task decorators
+from . import tasks  # noqa
