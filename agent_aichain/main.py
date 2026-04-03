@@ -1,0 +1,81 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import structlog
+
+from agent_aichain.core.config import settings
+from agent_aichain.core.database import init_db
+
+# Configure structured logging
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer()
+    ]
+)
+logger = structlog.get_logger()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Handle startup and shutdown events"""
+    # Startup
+    logger.info("Starting AgentAichain application")
+    await init_db()
+    logger.info("Database initialized")
+    yield
+    # Shutdown
+    logger.info("Shutting down AgentAichain application")
+
+
+app = FastAPI(
+    title="AgentAichain API",
+    description="Multi-tenant AI Agent orchestration platform",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception", error=str(exc), path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error_type": type(exc).__name__}
+    )
+
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "agent-aichain", "version": "0.1.0"}
+
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Welcome to AgentAichain API",
+        "docs": "/docs",
+        "version": "0.1.0"
+    }
+
+
+# Include API routers
+from agent_aichain.api import auth, agents, teams, runs, api_keys
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
+app.include_router(teams.router, prefix="/api/v1/teams", tags=["teams"])
+app.include_router(runs.router, prefix="/api/v1/runs", tags=["runs"])
+app.include_router(api_keys.router, prefix="/api/v1", tags=["api-keys"])
