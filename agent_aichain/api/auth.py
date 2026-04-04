@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,10 +72,10 @@ async def login_for_access_token(
 
 @router.post("/register-tenant")
 async def register_tenant(
-    name: str,
-    slug: str,
-    admin_email: str,
-    admin_password: str,
+    name: str = Body(...),
+    slug: str = Body(...),
+    admin_email: str = Body(...),
+    admin_password: str = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new tenant with admin user"""

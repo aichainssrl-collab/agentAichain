@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import User, APIKey
@@ -13,8 +13,8 @@ router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 
 @router.post("/", response_model=dict)
 async def create_api_key(
-    name: str,
-    expires_in_days: Optional[int] = None,
+    name: str = Body(...),
+    expires_in_days: Optional[int] = Body(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

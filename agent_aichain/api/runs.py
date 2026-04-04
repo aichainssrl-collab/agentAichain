@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import Run, Agent, Team, Tenant
@@ -14,8 +14,8 @@ router = APIRouter(prefix="/runs", tags=["runs"])
 @router.post("/agent/{agent_id}")
 async def create_agent_run(
     agent_id: int,
-    task: str,
-    input: Optional[Dict[str, Any]] = None,
+    task: str = Body(...),
+    input: Optional[Dict[str, Any]] = Body(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -62,8 +62,8 @@ async def create_agent_run(
 @router.post("/team/{team_id}")
 async def create_team_run(
     team_id: int,
-    task: str,
-    input: Optional[Dict[str, Any]] = None,
+    task: str = Body(...),
+    input: Optional[Dict[str, Any]] = Body(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

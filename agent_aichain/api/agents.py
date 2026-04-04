@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import Agent, Run, Tenant
@@ -12,13 +12,13 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 
 @router.post("/", response_model=dict)
 async def create_agent(
-    name: str,
-    role: str,
-    model: str,
-    description: Optional[str] = None,
-    instructions: Optional[str] = None,
-    tools: Optional[List[str]] = None,
-    config: Optional[dict] = None,
+    name: str = Body(...),
+    role: str = Body(...),
+    model: str = Body(...),
+    description: Optional[str] = Body(None),
+    instructions: Optional[str] = Body(None),
+    tools: Optional[List[str]] = Body(None),
+    config: Optional[dict] = Body(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
