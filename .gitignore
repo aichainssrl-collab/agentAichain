@@ -79,6 +79,10 @@ docker-compose.override.yml
 
 # Alembic
 alembic/versions/*.pyc
+alembic/agent/
+
+# Mockups / scratch
+docs/mockup/
 
 # Node.js (if any frontend)
 node_modules/
