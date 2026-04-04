@@ -29,10 +29,9 @@ async def create_team(
         config=config or {},
         tenant_id=current_user.tenant_id
     )
-    db.add(team)
-    await db.flush()
 
     # Add agents to team if provided
+    agent_count = 0
     if agent_ids:
         result = await db.execute(
             select(Agent).where(
@@ -46,16 +45,19 @@ async def create_team(
             raise HTTPException(status_code=400, detail="Some agents not found or not in tenant")
 
         team.agents = agents
+        agent_count = len(agents)
 
+    db.add(team)
     await db.commit()
     await db.refresh(team)
+    # Refreshed team to get ID, agent_count is manually tracked to avoid lazy loading of agents
 
     return {
         "id": team.id,
         "name": team.name,
         "mode": team.mode,
         "tenant_id": team.tenant_id,
-        "agent_count": len(team.agents)
+        "agent_count": agent_count
     }
 
 
@@ -92,7 +94,9 @@ async def get_team(
 ):
     """Get a specific team with its agents"""
     result = await db.execute(
-        select(Team).where(
+        select(Team)
+        .options(selectinload(Team.agents))
+        .where(
             Team.id == team_id,
             Team.tenant_id == current_user.tenant_id
         )
@@ -117,6 +121,32 @@ async def get_team(
     }
 
 
+@router.delete("/{team_id}")
+async def delete_team(
+    team_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a team"""
+    result = await db.execute(
+        select(Team)
+        .options(selectinload(Team.agents))
+        .where(
+            Team.id == team_id,
+            Team.tenant_id == current_user.tenant_id
+        )
+    )
+    team = result.scalar_one_or_none()
+
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    await db.delete(team)
+    await db.commit()
+
+    return {"message": "Team deleted successfully"}
+
+
 @router.post("/{team_id}/agents/{agent_id}")
 async def add_agent_to_team(
     team_id: int,
@@ -126,7 +156,9 @@ async def add_agent_to_team(
 ):
     """Add an agent to a team"""
     result = await db.execute(
-        select(Team).where(
+        select(Team)
+        .options(selectinload(Team.agents))
+        .where(
             Team.id == team_id,
             Team.tenant_id == current_user.tenant_id
         )
@@ -162,7 +194,9 @@ async def remove_agent_from_team(
 ):
     """Remove an agent from a team"""
     result = await db.execute(
-        select(Team).where(
+        select(Team)
+        .options(selectinload(Team.agents))
+        .where(
             Team.id == team_id,
             Team.tenant_id == current_user.tenant_id
         )

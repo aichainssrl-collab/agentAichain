@@ -48,13 +48,13 @@ async def create_agent_run(
     task_id = run_agent_task.delay(run.id)
 
     # Update run with celery task ID
-    run.celery_task_id = task_id
+    run.celery_task_id = task_id.id
     await db.commit()
 
     return {
         "run_id": run.id,
         "status": run.status,
-        "celery_task_id": task_id,
+        "celery_task_id": task_id.id,
         "agent_id": agent.id
     }
 
@@ -99,13 +99,13 @@ async def create_team_run(
     task_id = run_team_task.delay(run.id)
 
     # Update run with celery task ID
-    run.celery_task_id = task_id
+    run.celery_task_id = task_id.id
     await db.commit()
 
     return {
         "run_id": run.id,
         "status": run.status,
-        "celery_task_id": task_id,
+        "celery_task_id": task_id.id,
         "team_id": team.id,
         "agent_count": len(team.agents)
     }

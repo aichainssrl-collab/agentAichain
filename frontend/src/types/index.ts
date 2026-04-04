@@ -16,6 +16,15 @@ export interface AuthResponse {
   token_type: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  tenant_id: number;
+}
+
 // Agent types
 export interface Agent {
   id: number;

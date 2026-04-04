@@ -11,7 +11,7 @@ const RunsPage: React.FC = () => {
   const { data: runsData, isLoading: runsLoading, refetch } = useRuns(50);
   const { data: agentsData } = useAgents();
   const { data: teamsData } = useTeams();
-  const { data: selectedRun, isLoading: runLoading, refetch: refetchRun } = useRun(0);
+  const [selectedRun, setSelectedRun] = useState<Run | null>(null);
 
   const [filterStatus, setFilterStatus] = useState<RunStatus | ''>('');
   const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
@@ -264,7 +264,7 @@ const RunsPage: React.FC = () => {
         title={`Run Details - #${selectedRun?.id}`}
         size="lg"
       >
-        {runLoading ? (
+        {false ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="lg" />
           </div>

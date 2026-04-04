@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
@@ -9,7 +10,7 @@ from agent_aichain.core.security import Security
 settings = Settings(_env_file=None)  # Use defaults for testing
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_engine():
     """Create a test database engine"""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -22,7 +23,7 @@ async def db_engine():
     await engine.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_session(db_engine):
     """Create a test database session"""
     async_session = sessionmaker(
@@ -78,6 +79,8 @@ async def test_multi_tenancy_isolation(db_session):
     assert all(a.tenant_id != tenant2.id for a in tenant1_agents)
     assert all(a.tenant_id != tenant1.id for a in tenant2_agents)
 
+
+from sqlalchemy import select
 
 @pytest.mark.asyncio
 async def test_user_belongs_to_tenant(db_session):

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { useAgents, useCreateAgent, useUpdateAgent, useDeleteAgent, useModels } from '@/lib/hooks/useApi';
-import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui';
+import { useNavigate } from 'react-router-dom';
+import { useAgents, useDeleteAgent, useCreateAgent, useUpdateAgent, useModels } from '@/lib/hooks/useApi';
+import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select, Textarea } from '@/components/ui';
 import { LoadingSpinner } from '@/components/common';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import type { Agent, CreateAgentRequest, UpdateAgentRequest } from '@/types';
 
 const AgentsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { data, isLoading } = useAgents();
   const { data: models } = useModels();
   const createAgentMutation = useCreateAgent();
@@ -14,16 +16,18 @@ const AgentsPage: React.FC = () => {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateAgentRequest>({
     name: '',
     role: 'assistant',
-    model: 'gpt-4',
+    model: '',
   });
 
   const agents = data?.data || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       if (editingAgent) {
         await updateAgentMutation.mutateAsync({
@@ -34,8 +38,9 @@ const AgentsPage: React.FC = () => {
         await createAgentMutation.mutateAsync(formData);
       }
       closeModal();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save agent:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to save agent');
     }
   };
 
@@ -66,7 +71,12 @@ const AgentsPage: React.FC = () => {
   const closeModal = () => {
     setIsCreateModalOpen(false);
     setEditingAgent(null);
-    setFormData({ name: '', role: 'assistant', model: 'gpt-4' });
+    setFormData({ name: '', role: 'assistant', model: '' });
+    setError(null);
+  };
+
+  const openChatPage = (agent: Agent) => {
+    navigate(`/chat/agent/${agent.id}`);
   };
 
   return (
@@ -109,6 +119,14 @@ const AgentsPage: React.FC = () => {
                     <p className="text-sm text-gray-600">{agent.role}</p>
                   </div>
                   <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openChatPage(agent)}
+                      title="Chat with Agent"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -311,6 +329,7 @@ const AgentsPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
     </div>
   );
 };

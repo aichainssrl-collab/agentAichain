@@ -1,6 +1,6 @@
 from datetime import timedelta
-from fastapi import APIRouter, Body, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Body, Depends, HTTPException, status, Security as FastAPISecurity
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, APIKeyHeader
 from jose import JWTError
 from jose.exceptions import ExpiredSignatureError
 from sqlalchemy import select
@@ -10,16 +10,42 @@ from agent_aichain.core.database import get_db
 from agent_aichain.core.security import Security
 from agent_aichain.core.config import settings
 from agent_aichain.services.tenant_service import TenantService
+from agent_aichain.services.api_key_service import APIKeyService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
+    api_key: str = FastAPISecurity(api_key_header),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Get current user from JWT token"""
+    """Get current user from JWT token or API Key"""
+    if api_key:
+        api_key_obj = await APIKeyService.verify_api_key(db, api_key)
+        if api_key_obj is None or not api_key_obj.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired API key",
+            )
+        result = await db.execute(select(User).where(User.id == api_key_obj.owner_id))
+        user = result.scalar_one_or_none()
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+            )
+        return user
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload = Security.decode_token(token)
     except ExpiredSignatureError:

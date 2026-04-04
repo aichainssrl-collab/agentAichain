@@ -1,5 +1,5 @@
 # Core
-fastapi==0.104.1
+fastapi==0.135.3
 uvicorn[standard]==0.24.0
 sqlalchemy==2.0.23
 alembic==1.13.0
@@ -41,3 +41,8 @@ faker==20.1.0
 # Monitoring
 prometheus-client==0.19.0
 structlog==23.2.0
+duckduckgo-search==8.1.1
+ddgs==9.12.1
+ollama==0.6.1
+agno==2.5.14
+starlette==1.0.0

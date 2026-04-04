@@ -12,6 +12,7 @@ import RunsPage from '@/pages/runs/RunsPage';
 import ApiKeysPage from '@/pages/api-keys/ApiKeysPage';
 import SkillsPage from '@/pages/settings/SkillsPage';
 import ModelsPage from '@/pages/settings/ModelsPage';
+import ChatPage from '@/pages/chat/ChatPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -137,6 +138,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ModelsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat/:mode/:id?"
+        element={
+          <ProtectedRoute>
+            <ChatPage />
           </ProtectedRoute>
         }
       />

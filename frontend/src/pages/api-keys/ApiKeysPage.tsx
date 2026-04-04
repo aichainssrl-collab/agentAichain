@@ -19,7 +19,7 @@ const ApiKeysPage: React.FC = () => {
     expires_in_days: 90,
   });
 
-  const apiKeys = apiKeysData?.data || [];
+  const apiKeys = apiKeysData || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +130,7 @@ const ApiKeysPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {apiKeys.map((apiKey) => (
+              {apiKeys.map((apiKey: any) => (
                 <tr key={apiKey.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {apiKey.name}

@@ -1,0 +1,50 @@
+src/lib/hooks/useApi.ts(3,15): error TS6196: 'Agent' is declared but never used.
+src/lib/hooks/useApi.ts(3,42): error TS6196: 'Team' is declared but never used.
+src/lib/hooks/useApi.ts(3,67): error TS6196: 'Run' is declared but never used.
+src/lib/hooks/useApi.ts(3,117): error TS6196: 'ApiKey' is declared but never used.
+src/lib/hooks/useApi.ts(83,17): error TS2339: Property 'updateTeam' does not exist on type 'ApiClient'.
+src/lib/hooks/useApi.ts(146,20): error TS2339: Property 'status' does not exist on type 'Query<Run, Error, Run, (string | number)[]>'.
+src/lib/hooks/useApi.ts(146,50): error TS2339: Property 'status' does not exist on type 'Query<Run, Error, Run, (string | number)[]>'.
+src/lib/hooks/useAuth.tsx(2,15): error TS2305: Module '"@/types"' has no exported member 'User'.
+src/pages/agents/AgentsPage.tsx(3,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/agents/AgentsPage.tsx(3,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/agents/AgentsPage.tsx(3,67): error TS6133: 'Input' is declared but its value is never read.
+src/pages/agents/AgentsPage.tsx(3,74): error TS6133: 'Select' is declared but its value is never read.
+src/pages/api-keys/ApiKeysPage.tsx(3,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/api-keys/ApiKeysPage.tsx(3,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/api-keys/ApiKeysPage.tsx(22,32): error TS2339: Property 'data' does not exist on type 'ApiKey[]'.
+src/pages/api-keys/ApiKeysPage.tsx(133,29): error TS7006: Parameter 'apiKey' implicitly has an 'any' type.
+src/pages/auth/LoginPage.tsx(81,17): error TS2783: 'name' is specified more than once, so this usage will be overwritten.
+src/pages/auth/LoginPage.tsx(98,17): error TS2783: 'name' is specified more than once, so this usage will be overwritten.
+src/pages/auth/RegisterPage.tsx(8,1): error TS6133: 'LoadingSpinner' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(5,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(5,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(5,67): error TS6133: 'Input' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(5,74): error TS6133: 'Select' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(8,15): error TS6196: 'Run' is declared but never used.
+src/pages/runs/RunsPage.tsx(8,76): error TS6196: 'Agent' is declared but never used.
+src/pages/runs/RunsPage.tsx(8,83): error TS6196: 'Team' is declared but never used.
+src/pages/runs/RunsPage.tsx(14,62): error TS6133: 'refetchRun' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(31,9): error TS6133: 'handleOpenExecute' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(46,15): error TS6133: 'data' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(49,15): error TS6133: 'data' is declared but its value is never read.
+src/pages/runs/RunsPage.tsx(60,5): error TS2552: Cannot find name 'setSelectedRun'. Did you mean 'selectedRun'?
+src/pages/runs/RunsPage.tsx(66,5): error TS2552: Cannot find name 'setSelectedRun'. Did you mean 'selectedRun'?
+src/pages/settings/ModelsPage.tsx(4,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/settings/ModelsPage.tsx(4,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/settings/ModelsPage.tsx(29,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/ModelsPage.tsx(36,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/ModelsPage.tsx(50,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/ModelsPage.tsx(65,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/SkillsPage.tsx(4,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/settings/SkillsPage.tsx(4,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/settings/SkillsPage.tsx(18,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/SkillsPage.tsx(25,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/SkillsPage.tsx(39,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/settings/SkillsPage.tsx(54,17): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+src/pages/teams/TeamsPage.tsx(4,16): error TS6133: 'CardHeader' is declared but its value is never read.
+src/pages/teams/TeamsPage.tsx(4,28): error TS6133: 'CardTitle' is declared but its value is never read.
+src/pages/teams/TeamsPage.tsx(4,74): error TS6133: 'Select' is declared but its value is never read.
+src/pages/teams/TeamsPage.tsx(6,16): error TS6133: 'Edit2' is declared but its value is never read.
+src/pages/teams/TeamsPage.tsx(7,40): error TS6196: 'Agent' is declared but never used.
+src/pages/teams/TeamsPage.tsx(18,23): error TS6133: 'setEditingTeam' is declared but its value is never read.

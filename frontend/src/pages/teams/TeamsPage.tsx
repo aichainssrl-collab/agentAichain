@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTeams, useCreateTeam, useDeleteTeam, useAddAgentToTeam, useRemoveAgentFromTeam } from '@/lib/hooks/useApi';
 import { useAgents } from '@/lib/hooks/useApi';
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { LoadingSpinner } from '@/components/common';
-import { Plus, Edit2, Trash2, UserPlus, UserMinus } from 'lucide-react';
+import { Plus, Edit2, Trash2, UserPlus, UserMinus, MessageSquare, ExternalLink } from 'lucide-react';
 import type { Team, CreateTeamRequest, Agent } from '@/types';
 
 const TeamsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { data: teamsData, isLoading: teamsLoading } = useTeams();
   const { data: agentsData, isLoading: agentsLoading } = useAgents();
   const createTeamMutation = useCreateTeam();
@@ -15,7 +17,6 @@ const TeamsPage: React.FC = () => {
   const removeAgentFromTeamMutation = useRemoveAgentFromTeam();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [selectedTeamForAgents, setSelectedTeamForAgents] = useState<Team | null>(null);
   const [formData, setFormData] = useState<CreateTeamRequest>({
     name: '',
@@ -29,13 +30,9 @@ const TeamsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingTeam) {
-        alert('Update not implemented yet');
-      } else {
-        await createTeamMutation.mutateAsync(formData);
-        setIsModalOpen(false);
-        setFormData({ name: '', mode: 'coordinate', max_iterations: 10 });
-      }
+      await createTeamMutation.mutateAsync(formData);
+      setIsModalOpen(false);
+      setFormData({ name: '', mode: 'coordinate', max_iterations: 10 });
     } catch (err) {
       console.error('Failed to save team:', err);
     }
@@ -74,6 +71,10 @@ const TeamsPage: React.FC = () => {
 
   const closeTeamAgents = () => {
     setSelectedTeamForAgents(null);
+  };
+
+  const openTeamChat = (team: Team) => {
+    navigate(`/chat/team/${team.id}`);
   };
 
   const availableAgents = (team: Team) => {
@@ -133,6 +134,14 @@ const TeamsPage: React.FC = () => {
                       title="Manage Agents"
                     >
                       <UserPlus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openTeamChat(team)}
+                      title="Chat with Team"
+                    >
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="danger"

@@ -89,6 +89,20 @@ def test_full_workflow(base_url, http_client):
     # Switch to API key auth
     api_headers = {"X-API-Key": api_key}
 
+    # Create an AI model for the agent
+    resp = http_client.post(
+        f"{base_url}/settings/models",
+        json={
+            "name": "gpt-4o",
+            "provider": "openai",
+            "api_key": "dummy",
+            "is_active": True
+        },
+        headers=api_headers
+    )
+    # 400 means it already exists, which is fine
+    assert resp.status_code in (200, 400)
+
     # Step 4: Create an agent
     resp = http_client.post(
         f"{base_url}/agents/",
@@ -178,7 +192,7 @@ def test_multi_tenancy_isolation(base_url, http_client):
         resp = http_client.post(
             f"{base_url}/auth/register-tenant",
             json={
-                "name": f"Tenant {i}",
+                "name": f"Tenant {i} {unique_suffix}",
                 "slug": slug,
                 "admin_email": admin_email,
                 "admin_password": "password123"
@@ -212,6 +226,19 @@ def test_multi_tenancy_isolation(base_url, http_client):
     )
     assert resp.status_code == 200
     api_key0 = resp.json()["key"]
+
+    # Create an AI model for the agent
+    resp = http_client.post(
+        f"{base_url}/settings/models",
+        json={
+            "name": "gpt-4o",
+            "provider": "openai",
+            "api_key": "dummy",
+            "is_active": True
+        },
+        headers={"X-API-Key": api_key0}
+    )
+    assert resp.status_code in (200, 400)
 
     # Create an agent as tenant 0
     resp = http_client.post(

@@ -78,12 +78,10 @@ const LoginPage: React.FC = () => {
                 Email
               </label>
               <input
-                name="username"
                 type="email"
                 placeholder="admin@demo.com"
                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 {...register('username')}
-                onChange={(e) => console.log('Email input:', e.target.value)}
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
@@ -95,12 +93,10 @@ const LoginPage: React.FC = () => {
                 Password
               </label>
               <input
-                name="password"
                 type="password"
                 placeholder="••••••••"
                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 {...register('password')}
-                onChange={(e) => console.log('Password input:', e.target.value)}
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
