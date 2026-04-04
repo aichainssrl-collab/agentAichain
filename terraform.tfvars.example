@@ -1,0 +1,12 @@
+# GCP Configuration
+project_id     = "your-gcp-project-id"
+region         = "europe-west1"
+
+# Secrets (change these!)
+db_password    = "your-secure-database-password-min-16-chars"
+jwt_secret     = "your-jwt-secret-min-32-characters"
+agno_api_key   = "your-agno-api-key"
+
+# GitHub (for Cloud Build CI/CD)
+github_owner   = "your-github-org-or-username"
+github_repo    = "agentAichain"
