@@ -19,6 +19,8 @@
 - **Scalable** – Horizontal scaling, stateless design
 - **Secure** – API keys, JWT, tenant isolation
 - **Async Execution** – Celery for long-running agent tasks
+- **Settings Management** – Configure skills and AI models centrally
+- **React Frontend** – Modern UI with real-time updates
 
 ---
 
@@ -388,7 +390,7 @@ AgentAichain is developed by **Aichain Solutions** for enterprise multi-agent or
 - Terraform (GCP)
 - Docker
 
-**Status:** Phase 1 complete (Core Platform). Phase 2: Local Testing & QA (Apr 3-10, 2026).
+**Status:** Phase 1 complete (Core Platform). Phase 2: Settings Management & Testing (Apr 3-10, 2026).
 
 ---
 

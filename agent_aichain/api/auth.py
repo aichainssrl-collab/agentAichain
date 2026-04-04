@@ -1,6 +1,8 @@
 from datetime import timedelta
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError
+from jose.exceptions import ExpiredSignatureError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import User, Tenant
@@ -18,11 +20,18 @@ async def get_current_user(
     db: AsyncSession = Depends(get_db)
 ) -> User:
     """Get current user from JWT token"""
-    payload = Security.decode_token(token)
-    if payload is None:
+    try:
+        payload = Security.decode_token(token)
+    except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

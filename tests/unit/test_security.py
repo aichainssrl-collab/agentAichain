@@ -1,4 +1,7 @@
 import pytest
+from datetime import timedelta
+from jose import JWTError
+from jose.exceptions import ExpiredSignatureError
 from agent_aichain.core.security import Security
 
 
@@ -30,6 +33,15 @@ def test_decode_token():
 
 
 def test_decode_invalid_token():
-    """Test decoding invalid token returns None"""
-    decoded = Security.decode_token("invalid-token")
-    assert decoded is None
+    """Test decoding invalid token raises JWTError"""
+    with pytest.raises(JWTError):
+        Security.decode_token("invalid-token")
+
+
+def test_decode_expired_token():
+    """Test decoding expired token raises ExpiredSignatureError"""
+    # Create an already expired token
+    data = {"sub": "user@example.com", "tenant_id": 1}
+    token = Security.create_access_token(data, expires_delta=timedelta(seconds=-1))
+    with pytest.raises(ExpiredSignatureError):
+        Security.decode_token(token)

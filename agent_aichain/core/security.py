@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 from passlib.context import CryptContext
 from agent_aichain.core.config import settings
 
@@ -30,9 +31,12 @@ class Security:
         return encoded_jwt
 
     @staticmethod
-    def decode_token(token: str) -> Optional[Dict[str, Any]]:
-        try:
-            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-            return payload
-        except JWTError:
-            return None
+    def decode_token(token: str) -> Dict[str, Any]:
+        """
+        Decode and validate JWT token.
+        Raises:
+            ExpiredTokenError: If token is expired.
+            JWTError: If token is invalid.
+        """
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        return payload

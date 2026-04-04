@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from agent_aichain.models import Team, Agent, Tenant, team_agents
 from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
@@ -65,7 +66,9 @@ async def list_teams(
 ):
     """List all teams for the current tenant"""
     result = await db.execute(
-        select(Team).where(Team.tenant_id == current_user.tenant_id)
+        select(Team)
+        .options(selectinload(Team.agents))
+        .where(Team.tenant_id == current_user.tenant_id)
     )
     teams = result.scalars().all()
 

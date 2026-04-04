@@ -411,17 +411,205 @@ Revoke an API key (sets `is_active=false`).
 
 ---
 
+## Settings
+
+Manage skills and AI models for agent configuration.
+
+### Skills
+
+#### List Skills
+
+**GET** `/settings/skills`
+
+List all available skills.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "search_kb",
+    "description": "Search knowledge base",
+    "category": "search",
+    "is_active": true,
+    "created_at": "2026-04-04T11:26:27.005621"
+  }
+]
+```
+
+#### Create Skill
+
+**POST** `/settings/skills`
+
+Create a new skill.
+
+**Request JSON:**
+```json
+{
+  "name": "calculator",
+  "description": "Perform mathematical calculations",
+  "category": "calculation",
+  "is_active": true
+}
+```
+
+**Response:**
+```json
+{
+  "id": 2,
+  "name": "calculator",
+  "description": "Perform mathematical calculations",
+  "category": "calculation",
+  "is_active": true,
+  "created_at": "2026-04-04T11:30:00.000000"
+}
+```
+
+#### Get Skill
+
+**GET** `/settings/skills/{skill_id}`
+
+Get skill details.
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "search_kb",
+  "description": "Search knowledge base",
+  "category": "search",
+  "is_active": true,
+  "created_at": "2026-04-04T11:26:27.005621",
+  "updated_at": "2026-04-04T11:35:00.000000"
+}
+```
+
+#### Update Skill
+
+**PUT** `/settings/skills/{skill_id}`
+
+Update a skill.
+
+**Request JSON:**
+```json
+{
+  "description": "Updated description",
+  "is_active": false
+}
+```
+
+**Response:** Updated skill object.
+
+#### Delete Skill
+
+**DELETE** `/settings/skills/{skill_id}`
+
+Permanently delete a skill.
+
+**Response:** `200 OK` with `{"message": "Skill deleted successfully"}`
+
+---
+
+### AI Models
+
+#### List Models
+
+**GET** `/settings/models`
+
+List all AI models.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "gpt-4",
+    "provider": "openai",
+    "max_tokens": 4096,
+    "max_context": 8192,
+    "cost_per_1k_input": 0.01,
+    "cost_per_1k_output": 0.03,
+    "is_active": true,
+    "created_at": "2026-04-04T11:40:00.000000"
+  }
+]
+```
+
+#### Create Model
+
+**POST** `/settings/models`
+
+Create a new AI model. Supports both standard providers (openai, anthropic, google, etc.) and custom providers like Ollama, OpenRouter.
+
+**Request JSON:**
+```json
+{
+  "name": "claude-3-opus",
+  "provider": "anthropic",
+  "base_url": "https://api.anthropic.com",
+  "api_key": "sk-ant-...",
+  "max_tokens": 4096,
+  "max_context": 200000,
+  "cost_per_1k_input": 0.015,
+  "cost_per_1k_output": 0.075,
+  "config": "{\"temperature\": 0.7}",
+  "is_active": true
+}
+```
+
+**Fields:**
+- `name` (required): Model identifier
+- `provider` (required): Provider name (e.g., "openai", "anthropic", "ollama", "openrouter", "custom")
+- `base_url` (optional): Custom API endpoint URL (for local/self-hosted models like Ollama)
+- `api_key` (optional): API key for the provider (stored encrypted at rest)
+- `max_tokens` (optional): Maximum completion tokens
+- `max_context` (optional): Context window size
+- `cost_per_1k_input` (optional): Cost per 1K input tokens in USD
+- `cost_per_1k_output` (optional): Cost per 1K output tokens in USD
+- `config` (optional): JSON string with additional model-specific parameters (temperature, top_p, etc.)
+- `is_active` (optional, default true): Whether the model is available for use
+
+**Response:** Created model object with all fields (note: `api_key` is returned only on creation, never shown again).
+
+#### Get Model
+
+**GET** `/settings/models/{model_id}`
+
+Get model details.
+
+**Response:** Model object with all fields.
+
+#### Update Model
+
+**PUT** `/settings/models/{model_id}`
+
+Update an AI model.
+
+**Request JSON:**
+```json
+{
+  "max_tokens": 8192,
+  "is_active": false
+}
+```
+
+**Response:** Updated model object.
+
+#### Delete Model
+
+**DELETE** `/settings/models/{model_id}`
+
+Permanently delete a model.
+
+**Response:** `200 OK` with `{"message": "Model deleted successfully"}`
+
+---
+
 ## Error Responses
 
 All endpoints return standard HTTP status codes.
 
 **400 Bad Request:**
-```json
-{
-  "detail": "Invalid input",
-  "error_type": "validation_error"
-}
-```
 
 **401 Unauthorized:**
 ```json
