@@ -11,7 +11,8 @@
 
 AgentAichain is a **B2B multi-tenant AI agent orchestration platform** built for enterprise clients like SignSiSure. It enables companies to deploy, manage, and scale AI agents with complete data isolation, audit logging, and enterprise-grade security.
 
-**Technology:** FastAPI, SQLAlchemy, PostgreSQL, Redis, Celery, AGNO integration  
+**Backend:** FastAPI, SQLAlchemy, PostgreSQL, Redis, Celery, AGNO integration  
+**Frontend:** React 18 + TypeScript, Vite, Tailwind CSS, React Query  
 **Deployment:** Google Cloud Platform (Cloud Run, Cloud SQL, Memorystore)  
 **License:** Proprietary
 
@@ -24,13 +25,62 @@ AgentAichain is a **B2B multi-tenant AI agent orchestration platform** built for
 | Feature | Description |
 |---------|-------------|
 | **Multi-Tenancy** | Complete data isolation per client via `tenant_id` scoping |
-| **Agent Management** | Create, update, delete AI agents with custom roles, models, tools |
+| **Agent Management** | Create, update, delete AI agents with custom roles, models, tools, instructions |
+| **Settings Management** | Centralized catalog of Skills and AI Models (provider-agnostic, cost tracking, active/inactive control) |
 | **Team Collaboration** | Group agents into teams for collaborative workflows |
 | **Async Execution** | Long-running agent tasks handled by Celery workers |
 | **Authentication** | API keys (machine) + JWT (user) with bcrypt password hashing |
 | **Audit Logging** | All runs tracked with tokens, cost, duration, status |
 | **REST API** | Full CRUD operations, OpenAPI docs at `/docs` |
+| **React Frontend** | Full SPA with agent/team management, settings, real-time monitoring |
 | **GCP Native** | Terraform infrastructure, Cloud Run auto-scaling |
+
+---
+
+## Phase 2 Highlights (April 3-10)
+
+### Settings Management System
+- **Skills** – Global catalog of reusable agent capabilities (search, calculation, etc.)
+- **AI Models** – Provider-agnostic model configuration
+  - Supports OpenAI, Anthropic, Google, Ollama, OpenRouter, custom
+  - Fields: name, provider, base_url, api_key, max_tokens, max_context, cost_per_1k_input/output, config (JSON), is_active
+  - **Model validation**: Agents must reference existing active models (400 error if invalid/inactive)
+  - Cost tracking for billing and analytics
+
+### React Frontend (v1.0)
+- **Technology**: React 18 + TypeScript (strict), Vite, Tailwind CSS, React Query, React Router v6
+- **Pages**:
+  - Dashboard – system overview with statistics
+  - Agents – full CRUD, dynamic model dropdown from API, edit modal
+  - Teams – create teams, add/remove agents
+  - Runs – list, filter, execute agent/team runs, auto-refresh polling
+  - API Keys – manage machine authentication keys
+  - Settings – Skills and AI Models management pages
+  - Auth – login, register
+- **Features**:
+  - Protected routes with JWT
+  - Dynamic model selection (filters active models, shows inactive with warning ⚠️)
+  - Run status auto-refresh (every 2s for pending/running)
+  - Model validation feedback (prevents saving to inactive models)
+  - Responsive UI with Tailwind
+
+### Backend Improvements
+- **PUT /agents/{id}** endpoint for editing agents (previously missing)
+- **JWT error handling** – distinct messages: "Token expired" vs "Invalid token"
+- **Token expiry** increased from 30min to **24 hours** for developer convenience
+- **Model validation** on create/update – ensures `model` field references active AIModel
+- **Team queries optimized** with `selectinload` for eager loading
+
+### Documentation
+- `CLAUDE.md` – developer onboarding guide for Claude Code instances
+- `docs/API_REFERENCE.md` – complete settings endpoints
+- `frontend/FE_SETUP.md` – React development setup
+- `CHANGELOG.md` – comprehensive release notes
+- Updated `README.md` with full feature list
+
+---
+
+## Architecture Highlights
 
 ---
 
@@ -84,6 +134,57 @@ AgentAichain is a **B2B multi-tenant AI agent orchestration platform** built for
    │ Terraform│  │          │
    └──────────┘  └──────────┘
 ```
+
+### Frontend Architecture
+
+```
+┌─────────────────────────────────────┐
+│         React 18 + TypeScript       │
+│  • Vite (dev server + build)        │
+│  • React Router v6 (routing)        │
+│  • React Query (server state)       │
+│  • Tailwind CSS (styling)           │
+└─────────────┬───────────────────────┘
+              │
+    ┌─────────┴─────────┐
+    ▼                   ▼
+┌───────┐         ┌──────────┐
+│Pages │         │ Components│
+│(路由) │         │(UI组件库) │
+└───────┘         └──────────┘
+    │                   │
+    └─────────┬─────────┘
+              ▼
+      ┌──────────────┐
+      │   ApiClient  │
+      │  (fetch + JWT)│
+      └──────┬───────┘
+             │
+             ▼
+      ┌──────────────┐
+      │  FastAPI      │
+      │  Backend      │
+      └──────────────┘
+```
+
+### Why These Technologies?
+
+| Technology | Reason |
+|------------|--------|
+| **FastAPI** | Async support, auto-docs, type hints, fast performance |
+| **SQLAlchemy** | Mature ORM, async support, excellent migrations |
+| **PostgreSQL** | Relational, ACID, GCP managed, jsonb support |
+| **Redis** | Fast cache, Celery broker, pub/sub |
+| **Celery** | Reliable background job processing |
+| **React** | Component-based, huge ecosystem, team familiarity |
+| **TypeScript** | Type safety, better DX, catches errors early |
+| **Vite** | Fast HMR, modern build, great DX |
+| **Tailwind** | Utility-first, no custom CSS files, rapid prototyping |
+| **React Query** | Server state management, caching, auto-refetch |
+| **Docker** | Consistent environments, easy local dev |
+| **Terraform** | Infrastructure as code, reproducible |
+| **Cloud Run** | Serverless, auto-scaling, pay-per-use |
+| **AGNO** | Open-source agent framework (future integration) |
 
 ---
 

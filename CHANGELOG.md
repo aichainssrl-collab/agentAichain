@@ -10,18 +10,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Phase 3 GCP deployment automation:**
-  - `deploy-gcp.sh` – fully automated deployment script
-  - `docs/DEPLOYMENT_GCP_STEPS.md` – detailed step-by-step guide
-  - `load-tests/load_test.py` – load testing script (baseline 100 RPS)
-  - `terraform.tfvars.example` – template for GCP variables
+- **Settings Management (Phase 2):**
+  - `Skills` – catalog of agent capabilities (name, description, category)
+  - `AI Models` – provider-agnostic model configuration (OpenAI, Anthropic, Ollama, etc.)
+  - CRUD APIs for Skills (`/api/v1/settings/skills`) and AI Models (`/api/v1/settings/models`)
+  - Model validation: agents must reference existing active models
+  - Cost tracking fields: `cost_per_1k_input`, `cost_per_1k_output`
+  - Flexible model config: custom base URLs, API keys, max tokens, context windows
+- **Frontend (React + TypeScript + Vite):**
+  - Complete SPA with authentication (login/register)
+  - Dashboard with system overview
+  - Agents page: create, edit, delete, list agents with dynamic model dropdown
+  - Teams page: manage agent teams with member management
+  - Runs page: list and monitor agent/team executions
+  - API Keys page: manage machine authentication keys
+  - Settings pages: Skills and AI Models management
+  - React Query for data fetching with auto-refresh
+  - Tailwind CSS for styling
+  - Protected routes and JWT token management
+- **Agent Updates:**
+  - `PUT /api/v1/agents/{id}` endpoint for editing agents
+  - Frontend edit modal pre-filled with existing data
+  - Partial updates supported
+- **Security Improvements:**
+  - Distinct JWT error messages: "Token expired" vs "Invalid token"
+  - Increased JWT expiry from 30min to 24h for developer convenience
+  - Model validation prevents referencing inactive models (400 error)
 - **Documentation:**
-  - `PROJECT_SUMMARY.md` – executive summary for stakeholders
-  - `docs/PHASE2_REPORT.md` – testing & QA report with results
-- **Development tools:**
-  - Docker Compose configuration for local development
-  - GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`)
-  - Alembic database migrations
+  - `CLAUDE.md` – developer onboarding guide for Claude Code
+  - `docs/API_REFERENCE.md` – complete settings endpoints documentation
+  - `frontend/FE_SETUP.md` – React development setup instructions
+  - Updated `README.md` with new features and frontend info
+- **Development Tools:**
+  - Docker Compose configuration for full stack (backend + frontend)
+  - Vite dev server with HMR
+  - TypeScript strict mode
+  - ESLint + Prettier configuration
+
+### Changed
+- `ACCESS_TOKEN_EXPIRE_MINUTES` default increased from 30 to 1440 (24 hours)
+- Teams list query optimized with `selectinload` for eager loading of agents
+- Update agent mutation now properly invalidates both single and list queries
+
+### Fixed
+- JWT decode now raises specific exceptions instead of blanket `None` return
+- Agent edit modal now correctly loads all fields for editing
+- Model dropdown populates from backend API instead of hardcoded list
+- Inactive models are now filtered/indicated in the UI
+
+### Security
+- Backend validates model existence and active status before creating/updating agents
+- API keys returned only on creation (not in GET responses)
+- Tenant isolation enforced in all agent operations
 
 ### Changed
 - Updated API endpoints to properly accept JSON request bodies using `Body(...)`

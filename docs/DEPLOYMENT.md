@@ -2,6 +2,12 @@
 
 This guide covers deploying AgentAichain to Google Cloud Platform using Terraform and Cloud Run.
 
+**Latest updates (Phase 2):**
+- Settings Management APIs (Skills, AI Models)
+- React Frontend integration
+- Model validation for agents
+- JWT errors improved, token expiry set to 24h
+
 ---
 
 ## Prerequisites
@@ -28,7 +34,7 @@ This guide covers deploying AgentAichain to Google Cloud Platform using Terrafor
 # Authenticate Docker to GCR
 gcloud auth configure-docker
 
-# Build image
+# Build image (from project root)
 docker build -t gcr.io/YOUR_PROJECT_ID/agent-aichain:latest .
 
 # Push
@@ -104,16 +110,39 @@ gcloud run deploy agent-aichain-api \
   --timeout 300s
 ```
 
+**Important environment variables:**
+- `ACCESS_TOKEN_EXPIRE_MINUTES=1440` (default, 24h) – adjust as needed
+- `LOG_LEVEL=INFO` – set to `DEBUG` for troubleshooting
+- `CORS_ORIGINS=["https://your-frontend.com"]` – add your frontend URL
+
 ### 6. Run Database Migrations
 
 ```bash
 gcloud run services execute agent-aichain-api --region europe-west1 -- alembic upgrade head
 ```
 
+This creates all tables including the new `skills` and `ai_models` tables.
+
 ### 7. Create Initial Tenant
 
 ```bash
 gcloud run services execute agent-aichain-api --region europe-west1 -- python scripts/create_tenant.py --name "Demo" --slug demo --email admin@example.com --password "secure_password"
+```
+
+### 8. Deploy Celery Workers (Optional but Recommended)
+
+```bash
+gcloud run deploy agent-aichain-worker \
+  --image gcr.io/YOUR_PROJECT_ID/agent-aichain:latest \
+  --region europe-west1 \
+  --platform managed \
+  --no-allow-unauthenticated \
+  --set-env-vars "DATABASE_URL=..." \
+  --set-env-vars "REDIS_URL=..." \
+  --set-secrets="SECRET_KEY=..." \
+  --set-secrets="AGNO_API_KEY=..." \
+  --command "celery" \
+  --args "-A agent_aichain.workers.celery_app worker --loglevel=info"
 ```
 
 ---
@@ -147,6 +176,128 @@ Wait ~15 minutes for all resources.
 ---
 
 ## Post-Deployment
+
+### Initialize Settings
+
+After deployment, you should:
+
+1. **Create Skills** (optional, but useful for agent templates):
+   ```bash
+   curl -X POST https://YOUR_API_URL/api/v1/settings/skills \
+     -H "X-API-Key: YOUR_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"search_kb","description":"Search knowledge base","category":"search"}'
+   ```
+
+2. **Configure AI Models**:
+   ```bash
+   curl -X POST https://YOUR_API_URL/api/v1/settings/models \
+     -H "X-API-Key: YOUR_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name":"gpt-4",
+       "provider":"openai",
+       "api_key":"sk-...",
+       "max_tokens":4096,
+       "max_context":8192,
+       "is_active":true
+     }'
+   ```
+
+   For OpenRouter, Ollama, or custom providers, set `base_url` accordingly.
+
+3. **Create an API Key** for the frontend:
+   ```bash
+   curl -X POST https://YOUR_API_URL/api/v1/api-keys/ \
+     -H "X-API-Key: ADMIN_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Frontend App","expires_in_days":90}'
+   ```
+
+### Deploy Frontend (Optional)
+
+The React frontend can be deployed separately:
+
+1. Build the frontend:
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+
+2. Deploy to:
+   - **Cloud Storage + CDN**: Upload `dist/` to a bucket, enable public access
+   - **Netlify/Vercel**: Connect GitHub repo, set build command `npm run build`
+   - **Firebase Hosting**: `firebase init hosting`, `firebase deploy`
+
+3. Configure CORS:
+   - Backend's `CORS_ORIGINS` should include your frontend URL
+   - Example: `CORS_ORIGINS=["https://your-frontend.web.app"]`
+
+### Verify Installation
+
+- Health check: `curl https://YOUR_URL/health`
+- API docs: `https://YUR_URL/docs`
+- Frontend: `https://your-frontend.web.app`
+
+---
+
+## Environment Variables Reference
+
+| Variable | Description | Default / Example |
+|----------|-------------|-------------------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+asyncpg://...` |
+| `REDIS_URL` | Redis connection | `redis://IP:6379/0` |
+| `CELERY_BROKER_URL` | Celery broker (Redis DB 1) | `redis://IP:6379/1` |
+| `CELERY_RESULT_BACKEND` | Celery results (Redis DB 2) | `redis://IP:6379/2` |
+| `SECRET_KEY` | JWT signing secret (from Secret Manager) | Required |
+| `ALGORITHM` | JWT algorithm | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT expiry (default 1440 = 24h) | `1440` |
+| `AGNO_API_KEY` | AGNO service key (from Secret Manager) | Required |
+| `LOG_LEVEL` | Logging level | `INFO` |
+| `CORS_ORIGINS` | Allowed CORS origins (JSON) | `["http://localhost:3000"]` |
+
+---
+
+## Troubleshooting
+
+### Migrations fail with "asyncpg driver not found"
+Make sure `alembic.ini` has:
+```ini
+sqlalchemy.url = driver://user:pass@localhost/dbname
+```
+And use `asyncpg` driver in `DATABASE_URL`.
+
+### Celery workers can't connect to Redis
+Check that `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` point to correct Redis IP and DB numbers (1 and 2).
+
+### 401 Unauthorized on frontend
+- Verify JWT token is not expired (default 24h)
+- Check `SECRET_KEY` matches between backend and token issuer
+- Ensure API key is valid and active
+
+### Model not found error when creating agent
+- Verify model exists in `/settings/models` endpoint
+- Check `is_active=true` on the model
+- Create models via Settings API before creating agents
+
+---
+
+## Rollback
+
+To rollback to previous version:
+
+```bash
+gcloud run deploy agent-aichain-api \
+  --image gcr.io/YOUR_PROJECT_ID/agent-aichain:previous-tag \
+  ...
+```
+
+Or use Terraform to manage versions explicitly.
+
+---
+
+*Based on `docs/DEPLOYMENT.md` v1.0 | Updated: 2026-04-04*
 
 ### 1. Access Your API
 

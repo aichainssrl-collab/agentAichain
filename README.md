@@ -11,6 +11,7 @@
 
 ## 🚀 Features
 
+### Core Platform
 - **Multi-tenancy** – Full isolation (DB, memory, logging) per client
 - **FastAPI REST** – Ready for B2B integrations
 - **AGNO Core** – Agent, Team, Workflow, Memory
@@ -19,8 +20,27 @@
 - **Scalable** – Horizontal scaling, stateless design
 - **Secure** – API keys, JWT, tenant isolation
 - **Async Execution** – Celery for long-running agent tasks
-- **Settings Management** – Configure skills and AI models centrally
-- **React Frontend** – Modern UI with real-time updates
+
+### Settings Management
+- **Skills** – Catalog of reusable agent capabilities
+- **AI Models** – Provider-agnostic model configuration (OpenAI, Anthropic, Ollama, OpenRouter, etc.)
+- Cost tracking & context window management
+- Active/inactive model status for controlled deployment
+
+### React Frontend (v1.0)
+- **TypeScript + React 18** – Type-safe development
+- **Vite** – Lightning-fast HMR and builds
+- **Tailwind CSS** – Utility-first styling
+- **React Query** – Intelligent data fetching and caching
+- **React Router v6** – Modern client-side routing
+- **Features:**
+  - User authentication (login/register)
+  - Dashboard with system overview
+  - Agent management: CRUD with dynamic model selection
+  - Team management: create teams, add/remove agents
+  - Run monitoring: real-time status updates
+  - API key management
+  - Settings: Skills & AI Models configuration
 
 ---
 
