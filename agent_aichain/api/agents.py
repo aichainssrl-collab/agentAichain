@@ -135,6 +135,34 @@ async def get_agent(
     }
 
 
+@router.get("/{agent_id}/similar")
+async def get_similar_agents_endpoint(
+    agent_id: int,
+    limit: int = 5,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get similar agents based on shared tools using Neo4j Graph Database"""
+    # Verify agent exists in relational DB
+    result = await db.execute(
+        select(Agent).where(
+            Agent.id == agent_id
+        )
+    )
+    agent = result.scalar_one_or_none()
+
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    similar_agents = await GraphService.get_similar_agents(
+        agent_id=agent_id,
+        tenant_id=current_user.tenant_id,
+        limit=limit
+    )
+
+    return similar_agents
+
+
 @router.put("/{agent_id}")
 async def update_agent(
     agent_id: int,

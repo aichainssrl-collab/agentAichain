@@ -103,3 +103,31 @@ class GraphService:
         """
         async with driver.session() as session:
             await session.run(query, agent_id=agent_id, tool_name=tool_name)
+
+    @staticmethod
+    async def get_similar_agents(agent_id: int, tenant_id: int, limit: int = 5):
+        """Finds similar agents in the same tenant based on shared tools (N4)"""
+        driver = neo4j_conn.get_async_driver()
+        if not driver: return []
+        
+        # This Cypher query finds agents in the same tenant that share the most tools with the target agent
+        query = """
+        MATCH (target:Agent {id: $agent_id, tenant_id: $tenant_id})-[:USES_TOOL]->(t:Tool)<-[:USES_TOOL]-(other:Agent {tenant_id: $tenant_id})
+        WHERE target.id <> other.id
+        WITH other, count(t) as shared_tools
+        ORDER BY shared_tools DESC
+        LIMIT $limit
+        RETURN other.id as agent_id, other.name as name, shared_tools
+        """
+        
+        results = []
+        async with driver.session() as session:
+            records = await session.run(query, agent_id=agent_id, tenant_id=tenant_id, limit=limit)
+            async for record in records:
+                results.append({
+                    "agent_id": record["agent_id"],
+                    "name": record["name"],
+                    "shared_tools": record["shared_tools"]
+                })
+                
+        return results
