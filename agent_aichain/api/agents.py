@@ -1,17 +1,19 @@
 from typing import List, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import Agent, Run, Tenant, AIModel
 from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
 from agent_aichain.models import User
+from agent_aichain.services.graph_service import GraphService
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
 @router.post("/", response_model=dict)
 async def create_agent(
+    background_tasks: BackgroundTasks,
     name: str = Body(...),
     role: str = Body(...),
     aimodel_id: int = Body(...),
@@ -50,6 +52,24 @@ async def create_agent(
     db.add(agent)
     await db.commit()
     await db.refresh(agent)
+
+    # Sync Agent to Graph DB
+    background_tasks.add_task(
+        GraphService.sync_agent,
+        agent_id=agent.id,
+        name=agent.name,
+        tenant_id=agent.tenant_id,
+        role=agent.role
+    )
+    
+    # Sync tools to Graph DB if any
+    if agent.tools:
+        for tool in agent.tools:
+            background_tasks.add_task(
+                GraphService.link_agent_to_tool,
+                agent_id=agent.id,
+                tool_name=tool
+            )
 
     return {
         "id": agent.id,
@@ -118,6 +138,7 @@ async def get_agent(
 @router.put("/{agent_id}")
 async def update_agent(
     agent_id: int,
+    background_tasks: BackgroundTasks,
     name: Optional[str] = Body(None),
     role: Optional[str] = Body(None),
     aimodel_id: Optional[int] = Body(None),
@@ -175,6 +196,25 @@ async def update_agent(
 
     await db.commit()
     await db.refresh(agent)
+
+    # Sync Agent to Graph DB
+    background_tasks.add_task(
+        GraphService.sync_agent,
+        agent_id=agent.id,
+        name=agent.name,
+        tenant_id=agent.tenant_id,
+        role=agent.role
+    )
+    
+    # Sync tools to Graph DB if updated
+    if tools is not None:
+        # Note: In a robust setup, we'd also remove old tool links if they were removed
+        for tool in agent.tools:
+            background_tasks.add_task(
+                GraphService.link_agent_to_tool,
+                agent_id=agent.id,
+                tool_name=tool
+            )
 
     return {
         "id": agent.id,

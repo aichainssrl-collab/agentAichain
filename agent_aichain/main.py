@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     success = await neo4j_conn.connect_async()
     if success:
         logger.info("Neo4j initialized")
+        from agent_aichain.services.graph_service import GraphService
+        await GraphService.initialize_schema()
     else:
         logger.error("Failed to initialize Neo4j")
         

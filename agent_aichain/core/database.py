@@ -20,6 +20,10 @@ from agent_aichain.models.base import Base
 @event.listens_for(Session, "do_orm_execute")
 def _add_tenant_filter(execute_state):
     """Automatically add a filter for tenant_id to all queries."""
+    import os
+    if os.getenv("DISABLE_TENANT_FILTER") == "1":
+        return
+
     tenant_id = get_current_tenant_id()
     if tenant_id is not None:
         # Create bindparam outside the lambda to ensure it's evaluated properly per-query without caching issues

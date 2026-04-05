@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -7,12 +7,14 @@ from agent_aichain.models import Team, Agent, Tenant, team_agents
 from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
 from agent_aichain.models import User
+from agent_aichain.services.graph_service import GraphService
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
 
 @router.post("/", response_model=dict)
 async def create_team(
+    background_tasks: BackgroundTasks,
     name: str = Body(...),
     mode: Optional[str] = Body("coordinate"),
     max_iterations: Optional[int] = Body(10),
@@ -51,6 +53,23 @@ async def create_team(
     await db.commit()
     await db.refresh(team)
     # Refreshed team to get ID, agent_count is manually tracked to avoid lazy loading of agents
+
+    # Sync Team to Graph DB
+    background_tasks.add_task(
+        GraphService.sync_team,
+        team_id=team.id,
+        name=team.name,
+        tenant_id=team.tenant_id
+    )
+    
+    # Sync agent links
+    if agent_ids:
+        for agent_id in agent_ids:
+            background_tasks.add_task(
+                GraphService.link_agent_to_team,
+                agent_id=agent_id,
+                team_id=team.id
+            )
 
     return {
         "id": team.id,
@@ -151,6 +170,7 @@ async def delete_team(
 async def add_agent_to_team(
     team_id: int,
     agent_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -181,6 +201,12 @@ async def add_agent_to_team(
 
     team.agents.append(agent)
     await db.commit()
+
+    background_tasks.add_task(
+        GraphService.link_agent_to_team,
+        agent_id=agent.id,
+        team_id=team.id
+    )
 
     return {"message": "Agent added to team successfully"}
 
