@@ -26,7 +26,7 @@ const GraphPage: React.FC = () => {
   const { data, isLoading, isError, refetch } = useQuery<GraphData>({
     queryKey: ['tenant-graph'],
     queryFn: async () => {
-      const data = await apiClient.request<GraphData>('/v1/graph/tenant');
+      const data = await apiClient.request<GraphData>('/graph/tenant');
       return data;
     },
   });

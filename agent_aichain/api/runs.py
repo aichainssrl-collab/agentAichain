@@ -245,7 +245,7 @@ async def list_runs(
     db: AsyncSession = Depends(get_db)
 ):
     """List runs for the current tenant with optional filters"""
-    query = select(Run).where(Run.tenant_id == current_user.tenant_id)
+    query = select(Run)
 
     if status:
         query = query.where(Run.status == status)

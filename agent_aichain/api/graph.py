@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from agent_aichain.core.security import get_current_user
+from agent_aichain.api.auth import get_current_user
 from agent_aichain.models.user import User
 from agent_aichain.services.graph_service import GraphService
 

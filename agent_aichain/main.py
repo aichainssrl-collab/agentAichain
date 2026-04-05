@@ -7,6 +7,7 @@ import structlog
 from agent_aichain.core.config import settings
 from agent_aichain.core.database import init_db
 from agent_aichain.core.neo4j_db import neo4j_conn
+from agent_aichain.api.middleware.tenant import TenantContextMiddleware
 
 # Configure structured logging
 structlog.configure(
@@ -56,6 +57,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Tenant Context Middleware (B2)
+app.add_middleware(TenantContextMiddleware)
 
 # Global exception handler
 @app.exception_handler(Exception)

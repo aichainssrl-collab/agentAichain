@@ -89,7 +89,6 @@ async def list_teams(
     result = await db.execute(
         select(Team)
         .options(selectinload(Team.agents))
-        .where(Team.tenant_id == current_user.tenant_id)
     )
     teams = result.scalars().all()
 
