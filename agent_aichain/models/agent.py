@@ -13,7 +13,7 @@ class Agent(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(100), nullable=False)  # Role AGNO
-    model: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "gpt-4", "claude-3-opus"
+    aimodel_id: Mapped[int] = mapped_column(ForeignKey("ai_models.id"), nullable=False)
     config: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     tools: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -24,6 +24,7 @@ class Agent(Base, TimestampMixin):
 
     # Relationships
     tenant: Mapped["Tenant"] = relationship("Tenant", back_populates="agents")
+    aimodel: Mapped["AIModel"] = relationship("AIModel")
     teams: Mapped[list["Team"]] = relationship("Team", secondary=team_agents, back_populates="agents")
     runs: Mapped[list["Run"]] = relationship("Run", back_populates="agent")
 

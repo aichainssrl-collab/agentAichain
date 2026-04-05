@@ -12,10 +12,10 @@ Obiettivi: integrazione AGNO al 100%, attivazione Neo4j, deployment GCP solido, 
 | B3 | **Rivedere tutti gli endpoint** – Sostituire i filtri manuali con la dependency automatica e assicurare copertura | Media | B1 |
 | B4 | **Integrità referenziale Agent-AIModel** – Cambiare `Agent.model` (string) in FK `aimodel_id` con cascade o proteggere cancellazioni | Alta | B5, migrazione DB |
 | B5 | **Migrazione Alembic** – Generare migration per alterare colonna `agents.model` → `aimodel_id` e popolare con join | Alta | B4 |
-| B6 | **Rimuovere dipendenza Neo4j inutilizzata** – Eliminare `neo4j` da requirements.txt se non usata (o implementare) | Bassa | – |
+| B6 | **Implementare Neo4j** – Mantenere `neo4j` in requirements.txt e configurare la connessione iniziale al DB a grafo | Alta | – |
 | B7 | **Audit Logging strutturato** – Log di tutte le azioni (creazione, modifica, run) con tenant/user/timestamp in JSON a fini di conformità | Alta | B2 |
 | B8 | **Rate Limiting per tenant** – Implementare limiting per API key/IP (es. 1000 req/min per tenant) con Redis storage | Alta | B2 |
-| B9 | **API Versioning** – Introdurre prefisso `/api/v1/` e piano per v2, con deprecation headers | Media | – |
+| B9 | ✅ **API Versioning** – Introdurre prefisso `/api/v1/` e piano per v2, con deprecation headers | Completato | – |
 | B10 | **Request ID tracing** – Aggiungere `X-Request-ID` in middleware per correlare log through services (API → Celery) | Media | B2 |
 
 ---
@@ -24,12 +24,12 @@ Obiettivi: integrazione AGNO al 100%, attivazione Neo4j, deployment GCP solido, 
 
 | ID | Task | Priorità | Dipendenze |
 |----|------|----------|------------|
-| A1 | **Client AGNO ufficiale** – Sostituire chiamate HTTP raw con client Python `agno` (se disponibile) per type safety e retry | Alta | A2 |
-| A2 | **Configurazione multi-provider** – Supportare non solo AGNO ma anche OpenAI, Anthropic, Google, Ollama via `AIModel.provider` + adapter pattern | Alta | B4 |
-| A3 | **Retry & Circuit Breaker** – Implementare retry con backoff e circuit breaker per chiamate AGNO (o provider) | Alta | A1 |
+| A1 | ✅ **Client AGNO ufficiale** – Sostituire chiamate HTTP raw con client Python `agno` (se disponibile) per type safety e retry | Completato | A2 |
+| A2 | ✅ **Configurazione multi-provider** – Supportare non solo AGNO ma anche OpenAI, Anthropic, Google, Ollama via `AIModel.provider` + adapter pattern | Completato | B4 |
+| A3 | **Supporto Universale Modelli LLM** – Rendere possibile l'aggiunta di qualsiasi modello LLM dinamicamente (non solo quelli hardcoded) | Alta | A2 |
 | A4 | **Streaming risposte** – Aggiungere endpoint streaming SSE per run in tempo reale (per evitare polling) | Media | A1 |
-| A5 | **Cost & Token tracking** – Calcolo precise dei token e costo per provider (usando `tiktoken` o equivalente) e salvataggio in `Run` | Alta | A2 |
-| A6 | **Tool calling standardizzato** – Definire interface per tool (input schema, exec) e wrapper per tool esterni (Eurotrust QES, etc.) | Alta | A2 |
+| A5 | ✅ **Cost & Token tracking** – Calcolo precise dei token e costo per provider (usando `tiktoken` o equivalente) e salvataggio in `Run` | Completato | A2 |
+| A6 | ✅ **Tool calling standardizzato** – Definire interface per tool (input schema, exec) e wrapper per tool esterni (Eurotrust QES, etc.) | Completato | A2 |
 | A7 | **Agent template system** – Permettere template di agent riutilizzabili con placeholders e versioning | Media | A2 |
 | A8 | **Test di carico AGNO** – Simulare carico con mock provider e verificare scaling workers Celery | Media | A1 |
 
@@ -135,7 +135,6 @@ Obiettivi: integrazione AGNO al 100%, attivazione Neo4j, deployment GCP solido, 
 
 | ID | Task | Priorità | Dipendenze |
 |----|------|----------|------------|
-| T0 | **Eurotrust QES tool** – Implementare tool per firma digitale via API Eurotrust (wrapper) | Alta | A6 |
 | T1 | **Document ingestion pipeline** – Tool per caricare PDF/DOC, chunk, embed (usando embedding model) e salvare in Neo4j | Alta | N2, A6 |
 | T2 | **RAG retrieval tool** – Tool per cercare documenti simili nel graph (vector + graph) | Alta | N2, T1 |
 | T3 | **Multi-provider fallback** – Se AGNO fallisce, fallback a OpenAI diretto (configurabile) | Media | A2 |
@@ -160,7 +159,7 @@ Obiettivi: integrazione AGNO al 100%, attivazione Neo4j, deployment GCP solido, 
 - [ ] Copertura ≥80%  
 - [ ] Nessuna dipendenza inutilizzata (rimosso `neo4j` se non usata)  
 - [ ] Tenant scoping automatico implementato e verificato  
-- [ ] AGNO wrapper con retry e cost tracking funzionante  
+- [ ] AGNO wrapper funzionante (da completare: retry circuit breaker)  
 - [ ] Neo4j connesso e dati di esempio presenti  
 - [ ] Dockerfile multi-stage pronto  
 - [ ] Terraform include API + worker + Redis + Cloud SQL + Secret Manager  

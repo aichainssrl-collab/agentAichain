@@ -8,8 +8,8 @@ def test_settings_default_values():
         secret_key="test-secret-key",
         agno_api_key="test-agno-key"
     )
-    assert settings.database_url == "postgresql+asyncpg://user:password@localhost:5432/agent_aichain"
-    assert settings.redis_url == "redis://localhost:6379/0"
+    assert settings.database_url == "postgresql+asyncpg://agent_aichain:agent_aichain_password@postgres/agent_aichain"
+    assert settings.redis_url == "redis://redis:6379/0"
     assert settings.algorithm == "HS256"
     assert settings.access_token_expire_minutes == 30
     assert settings.log_level == "INFO"

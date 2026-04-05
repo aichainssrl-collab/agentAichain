@@ -193,7 +193,8 @@ async def create_model(
         cost_per_1k_input=data.cost_per_1k_input,
         cost_per_1k_output=data.cost_per_1k_output,
         config=data.config,
-        is_active=data.is_active
+        is_active=data.is_active,
+        tenant_id=current_user.tenant_id
     )
     db.add(model)
     await db.commit()

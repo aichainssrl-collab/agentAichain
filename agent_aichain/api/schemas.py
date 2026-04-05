@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
+from datetime import datetime
 
 class SkillCreate(BaseModel):
     name: str
@@ -36,3 +37,20 @@ class ModelUpdate(BaseModel):
     cost_per_1k_output: Optional[float] = None
     config: Optional[str] = None
     is_active: Optional[bool] = None
+
+class AgentCreate(BaseModel):
+    name: str
+    role: str
+    aimodel_id: int
+    description: Optional[str] = None
+    instructions: Optional[str] = None
+    tools: Optional[List[str]] = []
+    config: Optional[dict] = {}
+    is_active: Optional[bool] = True
+
+class AgentResponse(AgentCreate):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

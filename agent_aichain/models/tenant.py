@@ -23,6 +23,7 @@ class Tenant(Base, TimestampMixin):
     users: Mapped[list["User"]] = relationship("User", back_populates="tenant", cascade="all, delete-orphan")
     api_keys: Mapped[list["APIKey"]] = relationship("APIKey", back_populates="tenant", cascade="all, delete-orphan")
     agents: Mapped[list["Agent"]] = relationship("Agent", back_populates="tenant", cascade="all, delete-orphan")
+    ai_models: Mapped[list["AIModel"]] = relationship("AIModel", back_populates="tenant", cascade="all, delete-orphan")
     teams: Mapped[list["Team"]] = relationship("Team", back_populates="tenant", cascade="all, delete-orphan")
     runs: Mapped[list["Run"]] = relationship("Run", back_populates="tenant", cascade="all, delete-orphan")
 

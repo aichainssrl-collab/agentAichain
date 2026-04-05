@@ -89,6 +89,9 @@ node_modules/
 npm-debug.log
 yarn-error.log
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # Credentials and secrets
 *.pem
 *.key

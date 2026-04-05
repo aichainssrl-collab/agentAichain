@@ -36,13 +36,13 @@ def test_agent_creation():
     agent = Agent(
         name="Test Agent",
         role="assistant",
-        model="gpt-4",
+        aimodel_id=1,
         tenant_id=1,
         config={"temperature": 0.7}
     )
     assert agent.name == "Test Agent"
     assert agent.role == "assistant"
-    assert agent.model == "gpt-4"
+    assert agent.aimodel_id == 1
     assert agent.tenant_id == 1
 
 

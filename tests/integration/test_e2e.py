@@ -101,7 +101,19 @@ def test_full_workflow(base_url, http_client):
         headers=api_headers
     )
     # 400 means it already exists, which is fine
-    assert resp.status_code in (200, 400)
+    assert resp.status_code in (200, 400), resp.json()
+    
+    if resp.status_code == 200:
+        model_id = resp.json()["id"]
+    else:
+        # If it exists, fetch it
+        resp2 = http_client.get(f"{base_url}/settings/models", headers=api_headers)
+        models = resp2.json()
+        assert isinstance(models, list), f"Expected list, got: {models} (from GET after {resp.json()})"
+        try:
+            model_id = next(m["id"] for m in models if m["name"] == "gpt-4o")
+        except StopIteration:
+            pytest.fail(f"Model not found in GET despite POST 400: POST response={resp.json()}, GET response={models}")
 
     # Step 4: Create an agent
     resp = http_client.post(
@@ -109,7 +121,7 @@ def test_full_workflow(base_url, http_client):
         json={
             "name": "Test Agent",
             "role": "assistant",
-            "model": "gpt-4o",
+            "aimodel_id": model_id,
             "instructions": "You are a helpful assistant.",
             "tools": []
         },
@@ -238,7 +250,18 @@ def test_multi_tenancy_isolation(base_url, http_client):
         },
         headers={"X-API-Key": api_key0}
     )
-    assert resp.status_code in (200, 400)
+    assert resp.status_code in (200, 400), resp.json()
+
+    if resp.status_code == 200:
+        model_id = resp.json()["id"]
+    else:
+        resp2 = http_client.get(f"{base_url}/settings/models", headers={"X-API-Key": api_key0})
+        models = resp2.json()
+        assert isinstance(models, list), f"Expected list, got: {models} (from GET after {resp.json()})"
+        try:
+            model_id = next(m["id"] for m in models if m["name"] == "gpt-4o")
+        except StopIteration:
+            pytest.fail(f"Model not found in GET despite POST 400: POST response={resp.json()}, GET response={models}")
 
     # Create an agent as tenant 0
     resp = http_client.post(
@@ -246,11 +269,11 @@ def test_multi_tenancy_isolation(base_url, http_client):
         json={
             "name": "Agent Tenant 0",
             "role": "assistant",
-            "model": "gpt-4o"
+            "aimodel_id": model_id
         },
         headers={"X-API-Key": api_key0}
     )
-    assert resp.status_code == 200
+    assert resp.status_code == 200, resp.json()
     agent0 = resp.json()
     agent0_id = agent0["id"]
 

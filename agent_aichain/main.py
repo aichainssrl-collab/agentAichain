@@ -6,6 +6,7 @@ import structlog
 
 from agent_aichain.core.config import settings
 from agent_aichain.core.database import init_db
+from agent_aichain.core.neo4j_db import neo4j_conn
 
 # Configure structured logging
 structlog.configure(
@@ -23,9 +24,19 @@ async def lifespan(app: FastAPI):
     logger.info("Starting AgentAichain application")
     await init_db()
     logger.info("Database initialized")
+    
+    # Initialize Neo4j connection
+    success = await neo4j_conn.connect_async()
+    if success:
+        logger.info("Neo4j initialized")
+    else:
+        logger.error("Failed to initialize Neo4j")
+        
     yield
     # Shutdown
     logger.info("Shutting down AgentAichain application")
+    await neo4j_conn.close_async()
+    logger.info("Neo4j connection closed")
 
 
 app = FastAPI(

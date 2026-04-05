@@ -54,7 +54,7 @@ async def execute_agent_run(run_id: int) -> Dict[str, Any]:
             # Fetch AIModel
             from agent_aichain.models import AIModel
             result = await db.execute(
-                select(AIModel).where(AIModel.name == agent_model.model)
+                select(AIModel).where(AIModel.id == agent_model.aimodel_id)
             )
             ai_model = result.scalars().first()
 
@@ -132,9 +132,11 @@ async def execute_team_run(run_id: int) -> Dict[str, Any]:
             if run is None:
                 raise ValueError(f"Run {run_id} not found")
 
-            # Fetch team with agents
+            # Fetch team with agents and their models
             result = await db.execute(
-                select(Team).options(selectinload(Team.agents)).where(
+                select(Team).options(
+                    selectinload(Team.agents).selectinload(Agent.aimodel)
+                ).where(
                     Team.id == run.team_id,
                     Team.tenant_id == run.tenant_id
                 )

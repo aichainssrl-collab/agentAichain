@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     agno_api_key: str = Field(default="test-agno-key-for-development-only")
     agno_base_url: str = Field(default="https://api.agno.io")
 
+    # Neo4j
+    neo4j_uri: str = Field(default="bolt://localhost:7687")
+    neo4j_user: str = Field(default="neo4j")
+    neo4j_password: str = Field(default="neo4jpassword")
+
     # Logging
     log_level: str = Field(default="INFO")
     log_format: str = Field(default="json")

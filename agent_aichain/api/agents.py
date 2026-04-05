@@ -14,7 +14,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 async def create_agent(
     name: str = Body(...),
     role: str = Body(...),
-    model: str = Body(...),
+    aimodel_id: int = Body(...),
     description: Optional[str] = Body(None),
     instructions: Optional[str] = Body(None),
     tools: Optional[List[str]] = Body(None),
@@ -26,7 +26,7 @@ async def create_agent(
     # Validate model exists and is active
     result = await db.execute(
         select(AIModel).where(
-            AIModel.name == model,
+            AIModel.id == aimodel_id,
             AIModel.is_active == True
         )
     )
@@ -34,13 +34,13 @@ async def create_agent(
     if ai_model is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Model '{model}' not found or is inactive. Please select an active model from Settings."
+            detail=f"Model ID '{aimodel_id}' not found or is inactive. Please select an active model from Settings."
         )
 
     agent = Agent(
         name=name,
         role=role,
-        model=model,
+        aimodel_id=aimodel_id,
         description=description,
         instructions=instructions,
         tools=tools or [],
@@ -55,7 +55,7 @@ async def create_agent(
         "id": agent.id,
         "name": agent.name,
         "role": agent.role,
-        "model": agent.model,
+        "aimodel_id": agent.aimodel_id,
         "tenant_id": agent.tenant_id
     }
 
@@ -67,7 +67,7 @@ async def list_agents(
 ):
     """List all agents for the current tenant"""
     result = await db.execute(
-        select(Agent).where(Agent.tenant_id == current_user.tenant_id)
+        select(Agent)
     )
     agents = result.scalars().all()
 
@@ -76,7 +76,7 @@ async def list_agents(
             "id": a.id,
             "name": a.name,
             "role": a.role,
-            "model": a.model,
+            "aimodel_id": a.aimodel_id,
             "is_active": a.is_active,
             "created_at": a.created_at.isoformat() if a.created_at else None
         }
@@ -93,8 +93,7 @@ async def get_agent(
     """Get a specific agent"""
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()
@@ -107,7 +106,7 @@ async def get_agent(
         "name": agent.name,
         "description": agent.description,
         "role": agent.role,
-        "model": agent.model,
+        "aimodel_id": agent.aimodel_id,
         "config": agent.config,
         "tools": agent.tools,
         "instructions": agent.instructions,
@@ -121,7 +120,7 @@ async def update_agent(
     agent_id: int,
     name: Optional[str] = Body(None),
     role: Optional[str] = Body(None),
-    model: Optional[str] = Body(None),
+    aimodel_id: Optional[int] = Body(None),
     description: Optional[str] = Body(None),
     instructions: Optional[str] = Body(None),
     tools: Optional[List[str]] = Body(None),
@@ -133,8 +132,7 @@ async def update_agent(
     """Update an existing agent"""
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()
@@ -143,18 +141,18 @@ async def update_agent(
         raise HTTPException(status_code=404, detail="Agent not found")
 
     # If model is being updated, validate it exists and is active
-    if model is not None:
-        result = await db.execute(
+    if aimodel_id is not None:
+        model_result = await db.execute(
             select(AIModel).where(
-                AIModel.name == model,
+                AIModel.id == aimodel_id,
                 AIModel.is_active == True
             )
         )
-        ai_model = result.scalar_one_or_none()
+        ai_model = model_result.scalar_one_or_none()
         if ai_model is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Model '{model}' not found or is inactive. Please select an active model from Settings."
+                detail=f"Model ID '{aimodel_id}' not found or is inactive. Please select an active model from Settings."
             )
 
     # Update fields if provided
@@ -162,8 +160,8 @@ async def update_agent(
         agent.name = name
     if role is not None:
         agent.role = role
-    if model is not None:
-        agent.model = model
+    if aimodel_id is not None:
+        agent.aimodel_id = aimodel_id
     if description is not None:
         agent.description = description
     if instructions is not None:
@@ -183,7 +181,7 @@ async def update_agent(
         "name": agent.name,
         "description": agent.description,
         "role": agent.role,
-        "model": agent.model,
+        "aimodel_id": agent.aimodel_id,
         "config": agent.config,
         "tools": agent.tools,
         "instructions": agent.instructions,
@@ -201,8 +199,7 @@ async def delete_agent(
     """Delete an agent"""
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()

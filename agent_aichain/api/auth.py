@@ -11,6 +11,7 @@ from agent_aichain.core.security import Security
 from agent_aichain.core.config import settings
 from agent_aichain.services.tenant_service import TenantService
 from agent_aichain.services.api_key_service import APIKeyService
+from agent_aichain.core.tenant_context import set_current_tenant_id
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
@@ -37,6 +38,7 @@ async def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive",
             )
+        set_current_tenant_id(user.tenant_id)
         return user
 
     if not token:
@@ -75,6 +77,8 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
         )
+    
+    set_current_tenant_id(user.tenant_id)
     return user
 
 
