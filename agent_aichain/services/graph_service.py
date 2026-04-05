@@ -131,3 +131,58 @@ class GraphService:
                 })
                 
         return results
+
+    @staticmethod
+    async def get_tenant_graph(tenant_id: int):
+        """Returns the entire graph (nodes and links) for a specific tenant (Wow Effect)"""
+        driver = neo4j_conn.get_async_driver()
+        if not driver: return {"nodes": [], "links": []}
+        
+        query = """
+        MATCH (n)
+        WHERE (n:Tenant AND n.id = $tenant_id) OR n.tenant_id = $tenant_id
+        OPTIONAL MATCH (n)-[r]->(m)
+        RETURN n, r, m
+        """
+        
+        nodes_dict = {}
+        links = []
+        
+        def add_node(node):
+            if not node: return None
+            # create a unique id based on label and id/name
+            labels = list(node.labels)
+            label = labels[0] if labels else "Unknown"
+            
+            node_id = str(node.get("id")) if "id" in node else str(node.get("name"))
+            unique_id = f"{label}_{node_id}"
+            
+            if unique_id not in nodes_dict:
+                nodes_dict[unique_id] = {
+                    "id": unique_id,
+                    "label": label,
+                    "name": node.get("name", f"{label} {node_id}"),
+                    "role": node.get("role", "")
+                }
+            return unique_id
+            
+        async with driver.session() as session:
+            records = await session.run(query, tenant_id=tenant_id)
+            async for record in records:
+                n = record["n"]
+                r = record["r"]
+                m = record["m"]
+                
+                n_id = add_node(n)
+                if r and m:
+                    m_id = add_node(m)
+                    links.append({
+                        "source": n_id,
+                        "target": m_id,
+                        "label": r.type
+                    })
+                    
+        return {
+            "nodes": list(nodes_dict.values()),
+            "links": links
+        }

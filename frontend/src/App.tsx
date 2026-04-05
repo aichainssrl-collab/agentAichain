@@ -13,6 +13,7 @@ import ApiKeysPage from '@/pages/api-keys/ApiKeysPage';
 import SkillsPage from '@/pages/settings/SkillsPage';
 import ModelsPage from '@/pages/settings/ModelsPage';
 import ChatPage from '@/pages/chat/ChatPage';
+import GraphPage from '@/pages/graph/GraphPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -114,6 +115,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <RunsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/graph"
+        element={
+          <ProtectedRoute>
+            <GraphPage />
           </ProtectedRoute>
         }
       />

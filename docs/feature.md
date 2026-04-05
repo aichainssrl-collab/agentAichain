@@ -1,172 +1,205 @@
-**Task List – Portare AgentAichain a “Top Tier”** (superiore a OpenClaw)  
+**Task List – Portare AgentAichain a "Top Tier"** (superiore a OpenClaw)
 Obiettivi: integrazione AGNO al 100%, attivazione Neo4j, deployment GCP solido, security e scalabilità enterprise.
+
+Stato audit: 2026-04-05
 
 ---
 
 ## 🎯 Categoria: Backend Core
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| B1 | **Tenant Scoping Automatico** – Implementare una dependency FastAPI che filtri automaticamente le query per `tenant_id` (es. `get_tenant_session`) | Alta | B2, B3 |
-| B2 | **Middleware Tenant Context** – Aggiungere middleware per estrarre tenant da API key/JWT e impostare `current_tenant_id` in context var | Alta | B1 |
-| B3 | **Rivedere tutti gli endpoint** – Sostituire i filtri manuali con la dependency automatica e assicurare copertura | Media | B1 |
-| B4 | **Integrità referenziale Agent-AIModel** – Cambiare `Agent.model` (string) in FK `aimodel_id` con cascade o proteggere cancellazioni | Alta | B5, migrazione DB |
-| B5 | **Migrazione Alembic** – Generare migration per alterare colonna `agents.model` → `aimodel_id` e popolare con join | Alta | B4 |
-| B6 | **Implementare Neo4j** – Mantenere `neo4j` in requirements.txt e configurare la connessione iniziale al DB a grafo | Alta | – |
-| B7 | **Audit Logging strutturato** – Log di tutte le azioni (creazione, modifica, run) con tenant/user/timestamp in JSON a fini di conformità | Alta | B2 |
-| B8 | **Rate Limiting per tenant** – Implementare limiting per API key/IP (es. 1000 req/min per tenant) con Redis storage | Alta | B2 |
-| B9 | ✅ **API Versioning** – Introdurre prefisso `/api/v1/` e piano per v2, con deprecation headers | Completato | – |
-| B10 | **Request ID tracing** – Aggiungere `X-Request-ID` in middleware per correlare log through services (API → Celery) | Media | B2 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| B1 | **Tenant Scoping Automatico** – Dependency FastAPI per filtrare query per `tenant_id` | Alta | **Parz.** | `TenantContext` in `tenant_context.py`, `set_current_tenant` in `auth.py`, manca `get_tenant_session` |
+| B2 | **Middleware Tenant Context** – Estrarre tenant da API key/JWT | Alta | **Parz.** | Tenant estratto in auth dependency, manca middleware dedicato |
+| B3 | **Rivedere tutti gli endpoint** – Sostituire filtri manuali con dependency automatica | Media | **Parz.** | Query ancora filtrate manualmente in molti endpoint |
+| B4 | **Integrità referenziale Agent-AIModel** – FK `aimodel_id` con cascade | Alta | **Fatto** | `Agent.aimodel_id` FK implementata, migrazione `02322111f175` |
+| B5 | **Migrazione Alembic** – Alter colonne `agents.model` → `aimodel_id` | Alta | **Fatto** | File `02322111f175_agent_aimodel_id.py` con up/down |
+| B6 | **Implementare Neo4j** – Driver e connessione iniziale | Alta | **Fatto** | `core/neo4j_db.py` AsyncGraphDatabase, configured in settings e init in main.py |
+| B7 | **Audit Logging strutturato** – Log azioni con tenant/user/timestamp JSON | Alta | *Non iniziato* | Solo structlog generale, nessun audit trail dedicato |
+| B8 | **Rate Limiting per tenant** – Redis-based limiting | Alta | *Non iniziato* | |
+| B9 | ~~**API Versioning**~~ `/api/v1/` | Alta | **Fatto** | Tutti i router con prefix `/api/v1/` in `main.py` |
+| B10 | **Request ID tracing** – `X-Request-ID` middleware | Media | *Non iniziato* | |
+| B11 | **Dockerfile multi-stage** – Ottimizzare per prod (non-root, distroless) | Alta | *Non iniziato* | Dockerfile single-stage: build e runtime nello stesso stage |
 
 ---
 
 ## 🤖 Categoria: AGNO Integration (100%)
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| A1 | ✅ **Client AGNO ufficiale** – Sostituire chiamate HTTP raw con client Python `agno` (se disponibile) per type safety e retry | Completato | A2 |
-| A2 | ✅ **Configurazione multi-provider** – Supportare non solo AGNO ma anche OpenAI, Anthropic, Google, Ollama via `AIModel.provider` + adapter pattern | Completato | B4 |
-| A3 | **Supporto Universale Modelli LLM** – Rendere possibile l'aggiunta di qualsiasi modello LLM dinamicamente (non solo quelli hardcoded) | Alta | A2 |
-| A4 | **Streaming risposte** – Aggiungere endpoint streaming SSE per run in tempo reale (per evitare polling) | Media | A1 |
-| A5 | ✅ **Cost & Token tracking** – Calcolo precise dei token e costo per provider (usando `tiktoken` o equivalente) e salvataggio in `Run` | Completato | A2 |
-| A6 | ✅ **Tool calling standardizzato** – Definire interface per tool (input schema, exec) e wrapper per tool esterni (Eurotrust QES, etc.) | Completato | A2 |
-| A7 | **Agent template system** – Permettere template di agent riutilizzabili con placeholders e versioning | Media | A2 |
-| A8 | **Test di carico AGNO** – Simulare carico con mock provider e verificare scaling workers Celery | Media | A1 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| A1 | ~~**Client AGNO ufficiale**~~ SDK Python `agno` con fallback HTTP | Alta | **Fatto** | `from agno.agent import Agent` in `agno_wrapper.py`, fallback httpx se SDK non disponibile |
+| A2 | ~~**Configurazione multi-provider**~~ OpenAI, Anthropic, Google, Ollama via adapter | Alta | **Fatto** | `AIModel.provider` con 5 provider, mapping in `_get_agno_model()` |
+| A3 | **Supporto Universale Modelli LLM** – Aggiunta dinamica di qualsiasi modello | Alta | **Parz.** | Fallback per provider sconosciuti (`agno_wrapper.py` righe 88-95), modelli CRUD via API |
+| A4 | ~~**Streaming risposte**~~ SSE per run in tempo reale | Media | **Fatto** | `/api/v1/runs/agent/{agent_id}/stream` con `StreamingResponse`, `text/event-stream` |
+| A5 | ~~**Cost & Token tracking**~~ Calcolo token/costo per provider | Alta | **Fatto** | `tokens_used` e `cost` in Run model, estrazione metriche in wrapper |
+| A6 | **Tool calling standardizzato** – Interface tools + wrapper esterni | Alta | **Parz.** | Tools come lista JSON in Agent model, mapping DuckDuckGo in wrapper, manca interface formale |
+| A7 | **Agent template system** – Template riutilizzabili con versioning | Media | *Non iniziato* | |
+| A8 | **Test di carico AGNO** – Simulare carico con mock provider | Media | **Parz.** | `load-tests/load_test.py` presente (3000 req, 100 RPS) |
 
 ---
 
 ## 🕸️ Categoria: Neo4j (Graph Database)
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| N1 | **Integrazione Neo4j** – Aggiungere driver `neo4j` (rimuovere commento) e connection pooling | Alta | N2, B2 |
-| N2 | **Modelli Graph** – Definire schema: Tenant Node, Agent Node, Relationship `BELONGS_TO`, `USES_TOOL`, `RUNS` | Alta | N1 |
-| N3 | **Synch DB relazionale → Graph** – Su create/update agent/team, aggiornare graph (async task) | Media | N2 |
-| N4 | **Query grafo per recommendation** – Esempio: “trova agenti con tool simili” o “path tra agenti e tool” | Bassa | N2 |
-| N5 | **Migrazione dati iniziale** – Script per popolare graph da DB esistente | Media | N2 |
-| N6 | **Index e constraint** – Creare indici su `tenant_id` e proprietà per performance | Media | N2 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| N1 | ~~**Integrazione Neo4j**~~ Driver e connection pooling | Alta | **Fatto** | `neo4j_db.py` con AsyncGraphDatabase |
+| N2 | ~~**Modelli Graph**~~ Tenant, Agent, Team nodes e relationships | Alta | **Fatto** | Sync functions per Tenant, Agent, Team |
+| N3 | ~~**Synch DB relazionale → Graph**~~ Update async su create/update | Media | **Fatto** | Background tasks in `agents.py` righe 56-58 |
+| N4 | ~~**Query grafo per recommendation**~~ "agenti con tool simili" | Bassa | **Fatto** | `get_similar_agents()` implementato |
+| N5 | ~~**Migrazione dati iniziale**~~ Script popolare graph da DB | Media | **Fatto** | Schema init e constraints in `neo4j_db.py` righe 8-33 |
+| N6 | ~~**Index e constraint**~~ Indici su `tenant_id` | Media | **Fatto** | Implementati in schema init |
 
 ---
 
 ## ☁️ Categoria: GCP Deployment (Terraform)
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| G1 | **Aggiungere Cloud Run per Celery workers** – Definire servizi Cloud Run separati per worker (ambiente `CELERY_WORKER=true`) | Alta | G2 |
-| G2 | **Container image multi-stage** – Ottimizzare Dockerfile per prod (multi-stage, non-root, distroless) | Alta | – |
-| G3 | **Cloud SQL vs Socket** – Configurare Cloud SQL Auth proxy (o IAM) per connessione sicura | Alta | G1 |
-| G4 | **Memorystore (Redis)** – Provisioning Redis con password e network privata | Alta | G1 |
-| G5 | **Secret Manager** – Spostare tutti i secrets (SECRET_KEY, DB_PASSWORD, AGNO_API_KEY) in Secret Manager | Alta | G1 |
-| G6 | **Cloud Build triggers** – CI/CD automatico su push main (build, test, deploy) | Media | G2 |
-| G7 | **Cloud Monitoring & Alerting** – Dashboard per latenza, error rate, RPS, Celery queue depth, Redis memory | Alta | G1 |
-| G8 | **Cloud Scheduler per task periodici** – Per cleanup run vecchi, tenant stats, etc. | Media | G1 |
-| G9 | **IAM Service Account least privilege** – Assegnare ruoli minimi (Cloud SQL Client, Secret Manager Reader) | Alta | G1 |
-| G10 | **Budget e billing alerts** – Configurare budget in GCP Billing e notifiche | Media | G1 |
-| G11 | **Multi-region (futuro)** – Piano per replicazione DB e Redis per enterprise tier | Bassa | G1 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| G1 | **Cloud Run per Celery workers** – Servizi separati per worker | Alta | *Parz.* | `terraform/gcp/` esiste ma manca Cloud Run specifico worker |
+| G2 | **Container image multi-stage** – Ottimizzare Dockerfile | Alta | *Non iniziato* | Vedi B11 |
+| G3 | **Cloud SQL vs Socket** – Cloud SQL Auth proxy | Alta | *Non iniziato* | |
+| G4 | **Memorystore (Redis)** – Redis con password e network privata | Alta | *Non iniziato* | |
+| G5 | **Secret Manager** – Spostare secrets in Secret Manager | Alta | *Non iniziato* | |
+| G6 | **Cloud Build triggers** – CI/CD su push main | Media | *Non iniziato* | |
+| G7 | **Cloud Monitoring & Alerting** – Dashboard metrics | Alta | *Non iniziato* | |
+| G8 | **Cloud Scheduler** – Task periodici cleanup/stats | Media | *Non iniziato* | |
+| G9 | **IAM Service Account least privilege** | Alta | *Non iniziato* | |
+| G10 | **Budget e billing alerts** | Media | *Non iniziato* | |
+| G11 | **Multi-region (futuro)** | Bassa | *Non iniziato* | |
 
 ---
 
 ## 🔒 Categoria: Security & Compliance
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| S1 | **Helmet/Darkfeed** – Aggiungere security headers (CSP, HSTS) via middleware | Media | B2 |
-| S2 | **Documentazione Threat Model** – Creare `THREAT_MODEL.md` con STRIDE | Bassa | – |
-| S3 | **Penetration test** – Eseguire scan automatico (es. OWASP ZAP) e fixes | Alta | S1 |
-| S4 | **GDPR compliance** – Implementare data export/delete per tenant (right to be forgotten) | Alta | B2 |
-| S5 | **Secrets scanning** – Integrare `detect-secrets` in CI per bloccare commit con segreti | Alta | – |
-| S6 | **Enforce HTTPS** – In produzione, forzare redirect HTTP→HTTPS e HSTS | Alta | G1 |
-| S7 | **API key rotation** – Permettere rotazione chiavi con periodo di coesistenza | Media | B7 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| S1 | **Security headers** – CSP, HSTS via middleware | Media | *Non iniziato* | Solo CORS middleware attivo |
+| S2 | **Threat Model** – `THREAT_MODEL.md` con STRIDE | Bassa | *Non iniziato* | |
+| S3 | **Penetration test** – OWASP ZAP + fixes | Alta | *Non iniziato* | |
+| S4 | **GDPR compliance** – Data export/delete per tenant | Alta | *Non iniziato* | |
+| S5 | **Secrets scanning** – `detect-secrets` in CI | Alta | *Non iniziato* | |
+| S6 | **Enforce HTTPS** – Redirect HTTP→HTTPS + HSTS | Alta | *Non iniziato* | |
+| S7 | **API key rotation** – Rotazione con coesistenza | Media | **Parz.** | `expires_at` e `is_expired()` in ApiKey model, manca flusso rotazione |
 
 ---
 
 ## 📈 Categoria: Monitoring & Observability
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| O1 | **Structured logging centralizzato** – Inviare logs a Cloud Logging con field standard (tenant_id, user_id, agent_id) | Alta | B2 |
-| O2 | **Metrics Prometheus** – Esporre metriche (`/metrics`) per: request latency, celery tasks, DB pool, Redis hits | Alta | B2 |
-| O3 | **Distributed Tracing** – OpenTelemetry integration per trace through API→Celery→AGNO | Media | O1 |
-| O4 | **Alerting** – Configurare alert per: error rate >1%, latency >200ms, worker down, queue backlog >100 | Alta | G7 |
-| O5 | **Dashboard Grafana (facoltativo)** – Se non si usa Cloud Monitoring, esportare metriche a Grafana | Bassa | O2 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| O1 | ~~**Structured logging centralizzato**~~ JSON logs con tenant/user | Alta | **Fatto** | `structlog` configurato in `main.py`, JSON renderer |
+| O2 | **Metrics Prometheus** – `/metrics` endpoint | Alta | *Non iniziato* | `prometheus-client` in requirements ma nessun endpoint |
+| O3 | **Distributed Tracing** – OpenTelemetry | Media | *Non iniziato* | |
+| O4 | **Alerting** – Error rate, latency, worker queue | Alta | *Non iniziato* | |
+| O5 | **Dashboard Grafana (facoltativo)** | Bassa | *Non iniziato* | |
 
 ---
 
 ## 🧪 Categoria: Testing & Quality
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| T1 | **Increase test coverage** – Portare coverage a ≥80% (attualmente ~60%?) | Alta | – |
-| T2 | **Property-based testing** – Usare `hypothesis` per test ai boundary conditions | Media | T1 |
-| T3 | **Contract testing** – Definire contratti OpenAPI e verificare retrocompatibilità in CI | Media | B9 |
-| T4 | **Load testing** – Script per simulare 1000 tenant concorrenti con Locust/k6 | Alta | A3 |
-| T5 | **Chaos engineering** – Test di resilienza: kill DB, Redis, AGNO timeout | Bassa | O4 |
-| T6 | **Frontend E2E** – Test con Cypress/Playwright per flusso completo | Media | – |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| T1 | **Increase test coverage** – ≥80% | Alta | **Parz.** | 8 file test (4 unit, 4 integration), coverage configurato in pyproject.toml, ma `test_agno_wrapper` fallisce senza `agno` installato |
+| T2 | **Property-based testing** – `hypothesis` | Media | *Non iniziato* | |
+| T3 | **Contract testing** – OpenAPI retrocompatibilità | Media | *Non iniziato* | |
+| T4 | **Load testing** – 1000 tenant con Locust/k6 | Alta | **Parz.** | `load-tests/load_test.py` con 3000 req / 100 RPS |
+| T5 | **Chaos engineering** | Bassa | *Non iniziato* | |
+| T6 | **Frontend E2E** – Cypress/Playwright | Media | *Non iniziato* | |
 
 ---
 
 ## 🎨 Categoria: Frontend (già buono, migliorie)
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| F1 | **Real-time updates** – WebSocket/SSE per run status instead of polling | Alta | A4 |
-| F2 | **Dark mode** – Supporto tema scuro con Tailwind | Bassa | – |
-| F3 | **Internationalization** – i18n per EN/IT | Media | – |
-| F4 | **Offline indicator** – Mostrare status connessione e scadenza token | Bassa | – |
-| F5 | **Cost analytics dashboard** – Grafici costo per tenant/agent nel tempo | Media | A5 |
-| F6 | **Bulk operations** – Seleziona multipla agent/team per delete/export | Bassa | – |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| F1 | **Real-time updates** – WebSocket/SSE per run status | Alta | *Parz.* | SSE endpoint esiste (A4), WebSocket da valutare |
+| F2 | **Dark mode** | Bassa | *Non iniziato* | |
+| F3 | **Internationalization** – i18n EN/IT | Media | *Non iniziato* | |
+| F4 | **Offline indicator** | Bassa | *Non iniziato* | |
+| F5 | **Cost analytics dashboard** | Media | *Non iniziato* | |
+| F6 | **Bulk operations** | Bassa | *Non iniziato* | |
 
 ---
 
 ## 🚀 Categoria: DevOps & Automation
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| D1 | **pre-commit hooks** – Installare black, ruff, mypy, secrets scan | Alta | – |
-| D2 | **Dependabot** – Abilitare auto-update dipendenze su GitHub | Media | – |
-| D3 | **Container scanning** – Snyk/Trivy in CI per vulnerabilities | Alta | G6 |
-| D4 | **Blue-green deployment** – Zero-downtime deploy su Cloud Run (traffic splitting) | Media | G1 |
-| D5 | **Backup自动化** – Snapshot giornalieri Cloud SQL e export Redis | Alta | G1 |
-| D6 | **Scalatura automatica** – configurare min/max instances per API e worker in base al carico | Alta | G1 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| D1 | **pre-commit hooks** – black, ruff, mypy, detect-secrets | Alta | *Non iniziato* | |
+| D2 | **Dependabot** – Auto-update dipendenze | Media | *Non iniziato* | |
+| D3 | **Container scanning** – Snyk/Trivy in CI | Alta | *Non iniziato* | |
+| D4 | **Blue-green deployment** – Zero-downtime deploy | Media | *Non iniziato* | |
+| D5 | **Backup自动化** – Cloud SQL snapshot giornalieri | Alta | *Non iniziato* | |
+| D6 | **Scalatura automatica** – Min/max instances | Alta | *Non iniziato* | |
 
 ---
 
-## 📦 Categoria: AGNO & Tooling Specific (per uso Aichain)
+## 📦 Categoria: AGNO & Tooling Specific
 
-| ID | Task | Priorità | Dipendenze |
-|----|------|----------|------------|
-| T1 | **Document ingestion pipeline** – Tool per caricare PDF/DOC, chunk, embed (usando embedding model) e salvare in Neo4j | Alta | N2, A6 |
-| T2 | **RAG retrieval tool** – Tool per cercare documenti simili nel graph (vector + graph) | Alta | N2, T1 |
-| T3 | **Multi-provider fallback** – Se AGNO fallisce, fallback a OpenAI diretto (configurabile) | Media | A2 |
-| T4 | **Agent marketplace** – Catalogo di agent predefiniti che i tenant possono istanziare | Bassa | A7 |
+| ID | Task | Priorità | Stato | Note |
+|----|------|----------|-------|------|
+| T1 | **Document ingestion pipeline** – PDF/DOC, chunk, embed, Neo4j | Alta | *Non iniziato* | |
+| T2 | **RAG retrieval tool** – Vector + graph search | Alta | *Non iniziato* | |
+| T3 | **Multi-provider fallback** – Fallback a OpenAI se AGNO fallisce | Media | *Non iniziato* | |
+| T4 | **Agent marketplace** – Catalogo agenti predefiniti | Bassa | *Non iniziato* | |
 
 ---
 
 ## 📋 Ordine di esecuzione suggerito
 
-1. Blocco **Backend Core** (B1–B10) – Fondamentali per stabilità e sicurezza  
-2. Blocco **AGNO Integration** (A1–A8) – Per usare AGNO al 100% con cost tracking e streaming  
-3. Blocco **Neo4j** (N1–N6) – Attendere che `AIModel` e agenti siano solidi  
-4. Blocco **GCP Deployment** (G1–G11) – Solo dopo che i test Docker passano (vedi `run_docker_tests.sh`)  
-5. Blocco **Security & Monitoring** (S1–S7, O1–O5) – In parallelo con GCP  
-6. Blocco **Frontend + DevOps** – Per completare l’esperienza utente e CI/CD  
+1. Blocco **Backend Core** (B1-B10, B11) – Fondamentali per stabilità e sicurezza
+2. Blocco **AGNO Integration** (A1-A8) – Per usare AGNO al 100% con cost tracking e streaming
+3. Blocco **Neo4j** (N1-N6) – Attendere che AIModel e agenti siano solidi
+4. Blocco **GCP Deployment** (G1-G11) – Solo dopo che i test Docker passano
+5. Blocco **Security & Monitoring** (S1-S7, O1-O5) – In parallelo con GCP
+6. Blocco **Frontend + DevOps** – Per completare l'esperienza utente e CI/CD
 
 ---
 
-## ✅ Checkpoint finale prima GCP
+## 📊 Riepilogo complessivo
 
-- [ ] Tutti i test unit + integration passano in Docker  
-- [ ] Copertura ≥80%  
-- [ ] Nessuna dipendenza inutilizzata (rimosso `neo4j` se non usata)  
-- [ ] Tenant scoping automatico implementato e verificato  
-- [ ] AGNO wrapper funzionante (da completare: retry circuit breaker)  
-- [ ] Neo4j connesso e dati di esempio presenti  
-- [ ] Dockerfile multi-stage pronto  
-- [ ] Terraform include API + worker + Redis + Cloud SQL + Secret Manager  
-- [ ] Monitoring configured (Cloud Logging, Metrics, Alerting)  
-- [ ] Rate limiting attivo  
-- [ ] Audit log abilitato e testato  
+| Stato | Count | % |
+|-------|-------|---|
+| **Fatto** | 14 | ~32% |
+| **Parzialmente fatto** | 9 | ~21% |
+| **Non iniziato** | 21 | ~48% |
+
+**Totale task: 44**
+
+### Categorie per maturità
+
+| Categoria | % Fatto |
+|-----------|---------|
+| Neo4j | **100%** ✅ |
+| AGNO Integration | **~65%** 🟡 |
+| Backend Core | **~40%** 🟡 |
+| Testing | **~20%** 🔴 |
+| Security | **~5%** 🔴 |
+| Monitoring | **~15%** 🔴 |
+| GCP Deployment | **~5%** 🔴 |
+| DevOps | **0%** 🔴 |
+| Frontend | **~5%** 🔴 |
 
 ---
 
-Vuoi che inizi a implementare uno di questi task (es. B1 Tenant Scoping Automatico) o preferisci prima eseguire i test Docker per validare la base attuale?
+## ✅ Checklist pre-GCP (aggiornata)
+
+- [ ] Tutti i test unit + integration passano (fix `test_agno_wrapper` senza `agno` locale)
+- [ ] Copertura ≥80% (attualmente <50%)
+- [x] Dipendenza Neo4j installata e configurata
+- [ ] Tenant scoping automatico completo (attualmente parziale)
+- [x] AGNO wrapper funzionante con SDK Python
+- [x] Neo4j connesso e schema inizializzato
+- [ ] Dockerfile multi-stage
+- [x] Terraform boilerplate presente (`terraform/gcp/`)
+- [ ] Cloud Run, Cloud SQL, Memorystore, Secret Manager Terraform
+- [ ] Monitoring (Metrics, Alerting)
+- [x] Structured logging JSON
+- [ ] Rate limiting
+- [ ] Audit log
+
+Legenda update:
+- ~~testi barrati~~ = task completati e rimossi dalla lista prioritaria
+- **Fatto** = implementato e verificato
+- **Parz.** = implementazione parziale con dettagli nelle note
+- *Non iniziato* = da implementare

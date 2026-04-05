@@ -13,6 +13,7 @@ import {
   Settings,
   Cpu,
   MessageSquare,
+  Network,
 } from 'lucide-react';
 
 interface MainLayoutProps {
@@ -29,6 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Agenti', href: '/agents', icon: Bot },
     { name: 'Teams', href: '/teams', icon: Users },
+    { name: 'Neural Graph', href: '/graph', icon: Network },
     { name: 'Runs', href: '/runs', icon: Play },
     { name: 'Chat', href: '/chat/agent', icon: MessageSquare },
     { name: 'API Keys', href: '/api-keys', icon: Key },

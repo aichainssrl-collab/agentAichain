@@ -85,7 +85,7 @@ async def root():
 
 
 # Include API routers
-from agent_aichain.api import auth, agents, teams, runs, api_keys, settings
+from agent_aichain.api import auth, agents, teams, runs, api_keys, settings, graph
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
@@ -93,3 +93,4 @@ app.include_router(teams.router, prefix="/api/v1")
 app.include_router(runs.router, prefix="/api/v1")
 app.include_router(api_keys.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
+app.include_router(graph.router, prefix="/api/v1")
