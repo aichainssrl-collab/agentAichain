@@ -2,11 +2,13 @@ import pytest
 from agent_aichain.core.config import Settings
 
 
-def test_settings_default_values():
+def test_settings_default_values(monkeypatch):
     """Test Settings default values"""
+    monkeypatch.delenv("ACCESS_TOKEN_EXPIRE_MINUTES", raising=False)
     settings = Settings(
         secret_key="test-secret-key",
-        agno_api_key="test-agno-key"
+        agno_api_key="test-agno-key",
+        _env_file=None
     )
     assert settings.database_url == "postgresql+asyncpg://agent_aichain:agent_aichain_password@postgres/agent_aichain"
     assert settings.redis_url == "redis://redis:6379/0"

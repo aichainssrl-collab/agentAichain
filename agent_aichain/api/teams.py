@@ -8,8 +8,12 @@ from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
 from agent_aichain.models import User
 from agent_aichain.services.graph_service import GraphService
+from agent_aichain.core.rate_limit import TenantRateLimiter
 
 router = APIRouter(prefix="/teams", tags=["teams"])
+
+# 120 requests per minute per tenant for teams API
+teams_rate_limiter = TenantRateLimiter(max_requests=120, window_seconds=60)
 
 
 @router.post("/", response_model=dict)
@@ -20,7 +24,7 @@ async def create_team(
     max_iterations: Optional[int] = Body(10),
     config: Optional[dict] = Body(None),
     agent_ids: Optional[List[int]] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new team in the current tenant"""
@@ -37,8 +41,7 @@ async def create_team(
     if agent_ids:
         result = await db.execute(
             select(Agent).where(
-                Agent.id.in_(agent_ids),
-                Agent.tenant_id == current_user.tenant_id
+                Agent.id.in_(agent_ids)
             )
         )
         agents = result.scalars().all()
@@ -82,7 +85,7 @@ async def create_team(
 
 @router.get("/", response_model=List[dict])
 async def list_teams(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """List all teams for the current tenant"""
@@ -107,7 +110,7 @@ async def list_teams(
 @router.get("/{team_id}")
 async def get_team(
     team_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Get a specific team with its agents"""
@@ -115,8 +118,7 @@ async def get_team(
         select(Team)
         .options(selectinload(Team.agents))
         .where(
-            Team.id == team_id,
-            Team.tenant_id == current_user.tenant_id
+            Team.id == team_id
         )
     )
     team = result.scalar_one_or_none()
@@ -142,7 +144,7 @@ async def get_team(
 @router.delete("/{team_id}")
 async def delete_team(
     team_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a team"""
@@ -150,8 +152,7 @@ async def delete_team(
         select(Team)
         .options(selectinload(Team.agents))
         .where(
-            Team.id == team_id,
-            Team.tenant_id == current_user.tenant_id
+            Team.id == team_id
         )
     )
     team = result.scalar_one_or_none()
@@ -170,7 +171,7 @@ async def add_agent_to_team(
     team_id: int,
     agent_id: int,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Add an agent to a team"""
@@ -178,16 +179,14 @@ async def add_agent_to_team(
         select(Team)
         .options(selectinload(Team.agents))
         .where(
-            Team.id == team_id,
-            Team.tenant_id == current_user.tenant_id
+            Team.id == team_id
         )
     )
     team = result.scalar_one_or_none()
 
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()
@@ -214,7 +213,7 @@ async def add_agent_to_team(
 async def remove_agent_from_team(
     team_id: int,
     agent_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(teams_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Remove an agent from a team"""
@@ -222,8 +221,7 @@ async def remove_agent_from_team(
         select(Team)
         .options(selectinload(Team.agents))
         .where(
-            Team.id == team_id,
-            Team.tenant_id == current_user.tenant_id
+            Team.id == team_id
         )
     )
     team = result.scalar_one_or_none()
@@ -233,8 +231,7 @@ async def remove_agent_from_team(
 
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()

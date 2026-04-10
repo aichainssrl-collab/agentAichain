@@ -30,7 +30,8 @@ export interface Agent {
   id: number;
   name: string;
   role: string;
-  model: string;
+  aimodel_id: number;
+  model?: string; // Optional if we still return the name from backend occasionally
   description?: string;
   instructions?: string;
   tools?: string[];
@@ -49,7 +50,7 @@ export interface AgentConfig {
 export interface CreateAgentRequest {
   name: string;
   role: string;
-  model: string;
+  aimodel_id: number;
   description?: string;
   instructions?: string;
   tools?: string[];
@@ -59,7 +60,7 @@ export interface CreateAgentRequest {
 export interface UpdateAgentRequest extends Partial<CreateAgentRequest> {
   name?: string;
   role?: string;
-  model?: string;
+  aimodel_id?: number;
 }
 
 // Team types
@@ -185,4 +186,26 @@ export interface HealthCheck {
   status: string;
   timestamp: string;
   version?: string;
+}
+
+// Dashboard types
+export interface RecentRun {
+  id: number;
+  task: string;
+  status: string;
+  tokens_used: number;
+  cost: number;
+  created_at: string;
+  agent_id?: number;
+  team_id?: number;
+  agent_name?: string;
+  team_name?: string;
+}
+
+export interface DashboardStats {
+  total_agents: number;
+  total_teams: number;
+  total_runs: number;
+  active_runs: number;
+  recent_runs: RecentRun[];
 }

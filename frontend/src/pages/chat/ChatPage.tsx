@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, Button, Textarea } from '@/components/ui';
 import { useAgents, useTeams, useCreateAgentRun, useCreateTeamRun, useRun } from '@/lib/hooks/useApi';
+import { apiClient } from '@/lib/api/client';
 import { Send, Loader2, User, Bot, AlertCircle, ArrowLeft, MessageSquare } from 'lucide-react';
 import type { Agent, Team } from '@/types';
 
@@ -21,6 +22,8 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [activeRunId, setActiveRunId] = useState<number | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamedResponse, setStreamedResponse] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<number | ''>('');
   const [selectedTeamId, setSelectedTeamId] = useState<number | ''>(id ? parseInt(id) : '');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,7 +45,7 @@ const ChatPage: React.FC = () => {
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeRunId]);
+  }, [messages, activeRunId, streamedResponse, isStreaming]);
 
   // Reset chat when selection changes
   useEffect(() => {
@@ -60,19 +63,6 @@ const ChatPage: React.FC = () => {
     setActiveRunId(null);
     setInput('');
   }, [currentMode, selectedAgentId, selectedTeamId]);
-
-  // Polling
-  useEffect(() => {
-    let interval: any;
-    if (activeRunId) {
-      interval = window.setInterval(() => {
-        checkRunStatus();
-      }, 2000);
-    }
-    return () => {
-      if (interval) window.clearInterval(interval);
-    };
-  }, [activeRunId, checkRunStatus]);
 
   // Handle run status changes
   useEffect(() => {
@@ -126,11 +116,34 @@ const ChatPage: React.FC = () => {
 
     try {
       if (currentMode === 'agent') {
-        const response = await createAgentRun.mutateAsync({
-          agentId: selectedAgentId as number,
-          data: { task: userMsg.content, input: { chat_history: messages.filter(m => m.role !== 'system') } }
-        });
-        setActiveRunId(response.run_id);
+        setIsStreaming(true);
+        setStreamedResponse('');
+        
+        let fullResponse = '';
+        const runId = await apiClient.streamAgentRun(
+          selectedAgentId as number,
+          { task: userMsg.content, input: { chat_history: messages.filter(m => m.role !== 'system') } },
+          (chunk) => {
+            fullResponse += chunk;
+            setStreamedResponse(fullResponse);
+          },
+          (error) => {
+            console.error("Streaming error:", error);
+            throw error;
+          }
+        );
+
+        setIsStreaming(false);
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content: fullResponse,
+            runId: runId as number | undefined
+          }
+        ]);
+        setStreamedResponse('');
       } else {
         const response = await createTeamRun.mutateAsync({
           teamId: selectedTeamId as number,
@@ -139,6 +152,8 @@ const ChatPage: React.FC = () => {
         setActiveRunId(response.run_id);
       }
     } catch (error: any) {
+      setIsStreaming(false);
+      setStreamedResponse('');
       setMessages(prev => [
         ...prev,
         {
@@ -251,7 +266,27 @@ const ChatPage: React.FC = () => {
             </div>
           ))}
 
-          {activeRunId && (
+          {isStreaming && (
+            <div className="flex justify-start">
+              <div className="flex max-w-[80%] flex-row">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-600 mr-2 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div className="px-4 py-2 bg-white border border-gray-200 text-gray-800 rounded-lg rounded-tl-none shadow-sm">
+                  {streamedResponse ? (
+                    <div className="whitespace-pre-wrap break-words text-sm">{streamedResponse}</div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
+                      <span className="text-sm text-gray-500">Agent is thinking...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeRunId && !isStreaming && (
             <div className="flex justify-start">
               <div className="flex max-w-[80%] flex-row">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-600 mr-2 flex items-center justify-center">
@@ -259,7 +294,7 @@ const ChatPage: React.FC = () => {
                 </div>
                 <div className="px-4 py-3 bg-white border border-gray-200 text-gray-800 rounded-lg rounded-tl-none shadow-sm flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
-                  <span className="text-sm text-gray-500">Agent is thinking...</span>
+                  <span className="text-sm text-gray-500">Team is thinking...</span>
                 </div>
               </div>
             </div>
@@ -278,15 +313,15 @@ const ChatPage: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message... (Shift+Enter for new line)"
                 className="w-full resize-none min-h-[60px]"
-                disabled={activeRunId !== null}
+                disabled={activeRunId !== null || isStreaming}
               />
             </div>
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || activeRunId !== null || (currentMode === 'agent' && !selectedAgentId) || (currentMode === 'team' && !selectedTeamId)}
+              disabled={!input.trim() || activeRunId !== null || isStreaming || (currentMode === 'agent' && !selectedAgentId) || (currentMode === 'team' && !selectedTeamId)}
               className="h-[60px] px-6"
             >
-              {activeRunId ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              {(activeRunId || isStreaming) ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </Button>
           </div>
           {(currentMode === 'agent' && !selectedAgentId) || (currentMode === 'team' && !selectedTeamId) ? (

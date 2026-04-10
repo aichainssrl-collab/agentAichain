@@ -17,10 +17,10 @@ const AgentsPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateAgentRequest>({
+  const [formData, setFormData] = useState<Partial<CreateAgentRequest>>({
     name: '',
     role: 'assistant',
-    model: '',
+    aimodel_id: undefined,
   });
 
   const agents = data?.data || [];
@@ -28,6 +28,10 @@ const AgentsPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (!formData.aimodel_id) {
+      setError("Please select a model.");
+      return;
+    }
     try {
       if (editingAgent) {
         await updateAgentMutation.mutateAsync({
@@ -35,7 +39,7 @@ const AgentsPage: React.FC = () => {
           data: formData as UpdateAgentRequest
         });
       } else {
-        await createAgentMutation.mutateAsync(formData);
+        await createAgentMutation.mutateAsync(formData as CreateAgentRequest);
       }
       closeModal();
     } catch (err: any) {
@@ -48,7 +52,7 @@ const AgentsPage: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this agent?')) {
       try {
         await deleteAgentMutation.mutateAsync(id);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to delete agent:', err);
       }
     }
@@ -59,7 +63,7 @@ const AgentsPage: React.FC = () => {
     setFormData({
       name: agent.name,
       role: agent.role,
-      model: agent.model,
+      aimodel_id: agent.aimodel_id,
       description: agent.description,
       instructions: agent.instructions,
       tools: agent.tools,
@@ -71,7 +75,7 @@ const AgentsPage: React.FC = () => {
   const closeModal = () => {
     setIsCreateModalOpen(false);
     setEditingAgent(null);
-    setFormData({ name: '', role: 'assistant', model: '' });
+    setFormData({ name: '', role: 'assistant', aimodel_id: undefined });
     setError(null);
   };
 
@@ -148,7 +152,9 @@ const AgentsPage: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <div>
                     <span className="text-gray-500">Model:</span>{' '}
-                    <span className="font-medium">{agent.model}</span>
+                    <span className="font-medium">
+                      {models?.find(m => m.id === agent.aimodel_id)?.name || `Model ID: ${agent.aimodel_id}`}
+                    </span>
                   </div>
                   {agent.description && (
                     <div>
@@ -228,17 +234,18 @@ const AgentsPage: React.FC = () => {
               </label>
               <select
                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                value={formData.aimodel_id || ''}
+                onChange={(e) => setFormData({ ...formData, aimodel_id: parseInt(e.target.value, 10) })}
               >
+                <option value="" disabled>Select a model</option>
                 {models && models.length > 0 ? (
                   models.map((model) => (
-                    <option key={model.id} value={model.name}>
+                    <option key={model.id} value={model.id}>
                       {model.name} ({model.provider}){!model.is_active ? ' ⚠️ INACTIVE' : ''}
                     </option>
                   ))
                 ) : (
-                  <option value="">No models available</option>
+                  <option value="" disabled>No models available</option>
                 )}
               </select>
               {models && models.every(m => !m.is_active) && (

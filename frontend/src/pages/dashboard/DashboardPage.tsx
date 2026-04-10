@@ -1,55 +1,47 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAgents } from '@/lib/hooks/useApi';
-import { useTeams } from '@/lib/hooks/useApi';
-import { useRuns } from '@/lib/hooks/useApi';
+import { useDashboardStats } from '@/lib/hooks/useApi';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
 import { LoadingSpinner } from '@/components/common';
 import { Bot, Users, Play, Activity } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
-  const { data: agentsData, isLoading: agentsLoading } = useAgents();
-  const { data: teamsData, isLoading: teamsLoading } = useTeams();
-  const { data: runsData, isLoading: runsLoading } = useRuns(10);
-
-  const agents = agentsData?.data || [];
-  const teams = teamsData?.data || [];
-  const runs = runsData?.data || [];
-
-  const recentRuns = runs.slice(0, 5);
+  const { data: statsData, isLoading } = useDashboardStats();
 
   const stats = [
     {
       name: 'Total Agents',
-      value: agents.length,
+      value: statsData?.total_agents || 0,
       icon: Bot,
       color: 'bg-blue-500',
       link: '/agents',
     },
     {
       name: 'Total Teams',
-      value: teams.length,
+      value: statsData?.total_teams || 0,
       icon: Users,
       color: 'bg-green-500',
       link: '/teams',
     },
     {
       name: 'Total Runs',
-      value: runs.length,
+      value: statsData?.total_runs || 0,
       icon: Play,
       color: 'bg-purple-500',
       link: '/runs',
     },
     {
       name: 'Active Runs',
-      value: runs.filter((r) => r.status === 'running' || r.status === 'pending').length,
+      value: statsData?.active_runs || 0,
       icon: Activity,
       color: 'bg-yellow-500',
       link: '/runs?status=running',
     },
   ];
 
-  if (agentsLoading || teamsLoading || runsLoading) {
+  const recentRuns = statsData?.recent_runs || [];
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
@@ -126,7 +118,7 @@ const DashboardPage: React.FC = () => {
                         {run.task}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {run.agent_id || run.team_id || 'N/A'}
+                        {run.agent_name || run.team_name || run.agent_id || run.team_id || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

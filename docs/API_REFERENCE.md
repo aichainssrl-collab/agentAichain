@@ -72,7 +72,8 @@ List all agents for the current tenant.
     "id": 1,
     "name": "Support Bot",
     "role": "assistant",
-    "model": "gpt-4",
+    "aimodel_id": 1,
+    "model": "gpt-4o",
     "is_active": true,
     "created_at": "2026-04-03T12:00:00Z"
   }
@@ -123,12 +124,15 @@ Get agent details.
 {
   "id": 1,
   "name": "Support Bot",
-  "description": "Helps customers...",
+  "description": "Customer support assistant",
   "role": "assistant",
-  "model": "gpt-4",
-  "config": { "temperature": 0.7 },
-  "tools": ["search_kb", "create_ticket"],
-  "instructions": "Be polite...",
+  "aimodel_id": 1,
+  "model": "gpt-4o",
+  "config": {
+    "temperature": 0.7
+  },
+  "tools": ["web_search"],
+  "instructions": "Be helpful and concise",
   "is_active": true,
   "created_at": "2026-04-03T12:00:00Z"
 }
@@ -664,3 +668,38 @@ Default `limit` is 50, max 100.
 ---
 
 *OpenAPI (Swagger) docs available at: `/docs` (interactive)*
+---
+
+## Dashboard
+
+### Get Dashboard Stats
+
+**GET** `/dashboard/stats`
+
+Get aggregated dashboard statistics including recent runs with agent/team names.
+
+**Headers:** `X-API-Key` or `Authorization`
+
+**Response:**
+```json
+{
+  "total_agents": 5,
+  "total_teams": 2,
+  "total_runs": 120,
+  "active_runs": 3,
+  "recent_runs": [
+    {
+      "id": 1,
+      "task": "Analyze data",
+      "status": "completed",
+      "tokens_used": 1500,
+      "cost": 0.015,
+      "created_at": "2026-04-03T12:00:00Z",
+      "agent_id": 1,
+      "team_id": null,
+      "agent_name": "Support Bot",
+      "team_name": null
+    }
+  ]
+}
+```

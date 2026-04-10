@@ -370,6 +370,7 @@ gcloud run services execute agent-aichain --region=europe-west1 -- python script
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | GCP deployment guide (manual + Terraform) |
 | [SECURITY.md](docs/SECURITY.md) | Security policy, threat model, compliance |
 | [MULTI_TENANCY.md](docs/MULTI_TENANCY.md) | Multi-tenant architecture guide |
+| [AGENT.md](docs/AGENT.md) | Guide to Agent configuration and AGNO Integration |
 | [EXAMPLES.md](docs/EXAMPLES.md) | Practical usage examples (curl, Python) |
 | [OPERATIONS.md](docs/OPERATIONS.md) | Runbook, monitoring, incident response |
 
@@ -384,7 +385,8 @@ We welcome contributions! Please:
 3. Follow code style (black, ruff)
 4. Add tests for new functionality
 5. Ensure all tests pass (`pytest`)
-6. Submit a Pull Request
+6. **NEVER commit API keys or sensitive secrets to Git. Always use `.env` files or dummy values for testing.**
+7. Submit a Pull Request
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) (coming soon) for details.
 

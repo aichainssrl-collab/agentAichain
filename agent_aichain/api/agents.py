@@ -4,14 +4,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import Agent, Run, Tenant, AIModel
 from agent_aichain.core.database import get_db
+from agent_aichain.core.audit import log_audit_event, AuditAction
+from agent_aichain.core.rate_limit import TenantRateLimiter
 from agent_aichain.api.auth import get_current_user
 from agent_aichain.models import User
+
 from agent_aichain.services.graph_service import GraphService
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
+# 120 requests per minute per tenant for agents API
+agents_rate_limiter = TenantRateLimiter(max_requests=120, window_seconds=60)
 
-@router.post("/", response_model=dict)
+@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     background_tasks: BackgroundTasks,
     name: str = Body(...),
@@ -21,7 +26,7 @@ async def create_agent(
     instructions: Optional[str] = Body(None),
     tools: Optional[List[str]] = Body(None),
     config: Optional[dict] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new agent in the current tenant"""
@@ -53,6 +58,15 @@ async def create_agent(
     await db.commit()
     await db.refresh(agent)
 
+    log_audit_event(
+        action=AuditAction.CREATE,
+        resource_type="Agent",
+        resource_id=agent.id,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        details={"name": agent.name, "role": agent.role, "aimodel_id": agent.aimodel_id}
+    )
+
     # Sync Agent to Graph DB
     background_tasks.add_task(
         GraphService.sync_agent,
@@ -82,44 +96,50 @@ async def create_agent(
 
 @router.get("/", response_model=List[dict])
 async def list_agents(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """List all agents for the current tenant"""
     result = await db.execute(
-        select(Agent)
+        select(Agent, AIModel.name.label('model_name'))
+        .outerjoin(AIModel, Agent.aimodel_id == AIModel.id)
     )
-    agents = result.scalars().all()
+    agents_with_models = result.all()
 
     return [
         {
-            "id": a.id,
-            "name": a.name,
-            "role": a.role,
-            "aimodel_id": a.aimodel_id,
-            "is_active": a.is_active,
-            "created_at": a.created_at.isoformat() if a.created_at else None
+            "id": a.Agent.id,
+            "name": a.Agent.name,
+            "role": a.Agent.role,
+            "aimodel_id": a.Agent.aimodel_id,
+            "model": a.model_name,
+            "is_active": a.Agent.is_active,
+            "created_at": a.Agent.created_at.isoformat() if a.Agent.created_at else None
         }
-        for a in agents
+        for a in agents_with_models
     ]
 
 
 @router.get("/{agent_id}")
 async def get_agent(
     agent_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Get a specific agent"""
     result = await db.execute(
-        select(Agent).where(
+        select(Agent, AIModel.name.label('model_name'))
+        .outerjoin(AIModel, Agent.aimodel_id == AIModel.id)
+        .where(
             Agent.id == agent_id
         )
     )
-    agent = result.scalar_one_or_none()
+    row = result.first()
 
-    if agent is None:
+    if row is None:
         raise HTTPException(status_code=404, detail="Agent not found")
+
+    agent, model_name = row
 
     return {
         "id": agent.id,
@@ -127,6 +147,7 @@ async def get_agent(
         "description": agent.description,
         "role": agent.role,
         "aimodel_id": agent.aimodel_id,
+        "model": model_name,
         "config": agent.config,
         "tools": agent.tools,
         "instructions": agent.instructions,
@@ -139,7 +160,7 @@ async def get_agent(
 async def get_similar_agents_endpoint(
     agent_id: int,
     limit: int = 5,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Get similar agents based on shared tools using Neo4j Graph Database"""
@@ -175,7 +196,7 @@ async def update_agent(
     tools: Optional[List[str]] = Body(None),
     config: Optional[dict] = Body(None),
     is_active: Optional[bool] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Update an existing agent"""
@@ -225,6 +246,15 @@ async def update_agent(
     await db.commit()
     await db.refresh(agent)
 
+    log_audit_event(
+        action=AuditAction.UPDATE,
+        resource_type="Agent",
+        resource_id=agent.id,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        details={"name": agent.name, "role": agent.role, "aimodel_id": agent.aimodel_id}
+    )
+
     # Sync Agent to Graph DB
     background_tasks.add_task(
         GraphService.sync_agent,
@@ -261,7 +291,7 @@ async def update_agent(
 @router.delete("/{agent_id}")
 async def delete_agent(
     agent_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(agents_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete an agent"""
@@ -277,5 +307,13 @@ async def delete_agent(
 
     await db.delete(agent)
     await db.commit()
+
+    log_audit_event(
+        action=AuditAction.DELETE,
+        resource_type="Agent",
+        resource_id=agent_id,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id
+    )
 
     return {"message": "Agent deleted successfully"}

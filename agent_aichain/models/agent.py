@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, Integer, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base, TimestampMixin
-from .associations import team_agents
+from .associations import team_agents, agent_skills
 
 
 class Agent(Base, TimestampMixin):
@@ -27,6 +27,7 @@ class Agent(Base, TimestampMixin):
     aimodel: Mapped["AIModel"] = relationship("AIModel")
     teams: Mapped[list["Team"]] = relationship("Team", secondary=team_agents, back_populates="agents")
     runs: Mapped[list["Run"]] = relationship("Run", back_populates="agent")
+    skills: Mapped[list["Skill"]] = relationship("Skill", secondary=agent_skills, lazy="selectin")
 
     def __repr__(self) -> str:
         return f"<Agent(id={self.id}, name={self.name}, tenant_id={self.tenant_id})>"

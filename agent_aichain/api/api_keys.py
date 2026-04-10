@@ -5,17 +5,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import User, APIKey
 from agent_aichain.core.database import get_db
 from agent_aichain.core.security import Security
+from agent_aichain.core.audit import log_audit_event, AuditAction
+from agent_aichain.core.rate_limit import TenantRateLimiter
 from agent_aichain.api.auth import get_current_user
 import secrets
 
 router = APIRouter(prefix="/api-keys", tags=["api-keys"])
+
+# 60 requests per minute per tenant for api-keys API
+api_keys_rate_limiter = TenantRateLimiter(max_requests=60, window_seconds=60)
 
 
 @router.post("/", response_model=dict)
 async def create_api_key(
     name: str = Body(...),
     expires_in_days: Optional[int] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(api_keys_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new API key for the current user"""
@@ -42,6 +47,15 @@ async def create_api_key(
     await db.commit()
     await db.refresh(api_key)
 
+    log_audit_event(
+        action=AuditAction.CREATE,
+        resource_type="APIKey",
+        resource_id=api_key.id,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        details={"name": name, "expires_in_days": expires_in_days}
+    )
+
     # Return the raw key (only time it's visible)
     return {
         "id": api_key.id,
@@ -54,7 +68,7 @@ async def create_api_key(
 
 @router.get("/", response_model=List[dict])
 async def list_api_keys(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(api_keys_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """List API keys for the current user/tenant"""
@@ -83,7 +97,7 @@ async def list_api_keys(
 @router.delete("/{api_key_id}")
 async def revoke_api_key(
     api_key_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(api_keys_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Revoke an API key"""
@@ -101,5 +115,13 @@ async def revoke_api_key(
 
     api_key.is_active = False
     await db.commit()
+
+    log_audit_event(
+        action=AuditAction.DELETE,
+        resource_type="APIKey",
+        resource_id=api_key_id,
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id
+    )
 
     return {"message": "API key revoked successfully"}

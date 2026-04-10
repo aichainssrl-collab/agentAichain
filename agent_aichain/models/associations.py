@@ -8,3 +8,10 @@ team_agents = Table(
     Column("team_id", ForeignKey("teams.id"), primary_key=True),
     Column("agent_id", ForeignKey("agents.id"), primary_key=True),
 )
+
+agent_skills = Table(
+    "agent_skills",
+    Base.metadata,
+    Column("agent_id", ForeignKey("agents.id"), primary_key=True),
+    Column("skill_id", ForeignKey("skills.id"), primary_key=True),
+)

@@ -31,6 +31,17 @@ const ModelsPage: React.FC = () => {
     },
   });
 
+  const { data: openRouterModelsData, isLoading: isLoadingOpenRouterModels } = useQuery({
+    queryKey: ['openrouterModels'],
+    queryFn: async () => {
+      const response = await fetch('https://openrouter.ai/api/v1/models');
+      if (!response.ok) throw new Error('Failed to fetch OpenRouter models');
+      const data = await response.json();
+      return data.data; // Array of model objects { id: '...', name: '...' }
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
   const createMutation = useMutation({
     mutationFn: (data: typeof formData) =>
       apiClient.request<any>('/settings/models', {
@@ -66,6 +77,10 @@ const ModelsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['aimodels'] });
     },
+    onError: (error: any) => {
+      const detail = error.response?.data?.detail || error.message;
+      alert(detail || 'Failed to delete model. It might be in use.');
+    }
   });
 
   const models = modelsData?.data || [];
@@ -195,20 +210,61 @@ const ModelsPage: React.FC = () => {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Name *"
-                placeholder="e.g., gpt-4, claude-3-opus, llama2"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-              <Input
-                label="Provider *"
-                placeholder="e.g., openai, anthropic, ollama, openrouter, custom"
-                value={formData.provider}
-                onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                required
-              />
+              {formData.provider.toLowerCase() === 'openrouter' ? (
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">Name (Model ID) *</label>
+                  {isLoadingOpenRouterModels ? (
+                    <div className="text-sm text-gray-500 py-2">Loading OpenRouter models...</div>
+                  ) : (
+                    <select
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    >
+                      <option value="" disabled>Select a model...</option>
+                      {openRouterModelsData?.map((m: any) => (
+                        <option key={m.id} value={m.id}>
+                          {m.id} ({m.name})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ) : (
+                <Input
+                  label="Name *"
+                  placeholder="e.g., gpt-4, claude-3-opus, llama2"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              )}
+              
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Provider *</label>
+                <select
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                  value={formData.provider}
+                  onChange={(e) => {
+                    const newProvider = e.target.value;
+                    setFormData({ 
+                      ...formData, 
+                      provider: newProvider,
+                      name: newProvider === 'openrouter' ? '' : formData.name,
+                      base_url: newProvider === 'openrouter' ? 'https://openrouter.ai/api/v1' : formData.base_url 
+                    });
+                  }}
+                  required
+                >
+                  <option value="" disabled>Select provider...</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
             </div>
 
             <Input

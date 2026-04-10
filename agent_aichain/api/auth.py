@@ -9,6 +9,7 @@ from agent_aichain.models import User, Tenant
 from agent_aichain.core.database import get_db
 from agent_aichain.core.security import Security
 from agent_aichain.core.config import settings
+from agent_aichain.core.audit import log_audit_event, AuditAction
 from agent_aichain.services.tenant_service import TenantService
 from agent_aichain.services.api_key_service import APIKeyService
 from agent_aichain.core.tenant_context import set_current_tenant_id
@@ -106,6 +107,14 @@ async def login_for_access_token(
         expires_delta=access_token_expires
     )
 
+    log_audit_event(
+        action=AuditAction.LOGIN,
+        resource_type="Auth",
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        details={"login_method": "password"}
+    )
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -144,5 +153,14 @@ async def register_tenant(
     )
     db.add(admin)
     await db.commit()
+
+    log_audit_event(
+        action=AuditAction.CREATE,
+        resource_type="Tenant",
+        resource_id=tenant.id,
+        tenant_id=tenant.id,
+        user_id=admin.id,
+        details={"name": name, "slug": slug}
+    )
 
     return {"message": "Tenant created successfully", "tenant_id": tenant.id, "admin_id": admin.id}

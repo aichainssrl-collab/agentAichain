@@ -28,6 +28,7 @@ AgentAichain is a **B2B multi-tenant AI agent orchestration platform** built for
 | **Agent Management** | Create, update, delete AI agents with custom roles, models, tools, instructions |
 | **Settings Management** | Centralized catalog of Skills and AI Models (provider-agnostic, cost tracking, active/inactive control) |
 | **Team Collaboration** | Group agents into teams for collaborative workflows |
+| **Dashboard Analytics** | Aggregated tenant-specific statistics and recent run tracking with real-time agent/team name resolution |
 | **Async Execution** | Long-running agent tasks handled by Celery workers |
 | **Authentication** | API keys (machine) + JWT (user) with bcrypt password hashing |
 | **Audit Logging** | All runs tracked with tokens, cost, duration, status |
@@ -184,7 +185,7 @@ AgentAichain is a **B2B multi-tenant AI agent orchestration platform** built for
 | **Docker** | Consistent environments, easy local dev |
 | **Terraform** | Infrastructure as code, reproducible |
 | **Cloud Run** | Serverless, auto-scaling, pay-per-use |
-| **AGNO** | Open-source agent framework (future integration) |
+| **AGNO** | Open-source agent framework (integrated natively) |
 
 ---
 
@@ -403,8 +404,7 @@ Production on GCP will have higher performance with dedicated resources.
 
 1. **No rate limiting** – will be added in Phase 5
 2. **No SSO** – planned for enterprise tier
-3. **AGNO integration** – placeholder, needs actual AGNO service
-4. **Neo4j** – optional graph DB not configured yet
+3. **Neo4j** – optional graph DB not fully configured yet
 
 ---
 

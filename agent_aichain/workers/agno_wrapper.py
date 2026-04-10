@@ -30,15 +30,15 @@ class TenantAwareAgent:
         self.base_url = base_url
         self.ai_model = ai_model
 
-    def _get_agno_model(self):
+    def _get_agno_model(self, ai_model):
         """Map database AIModel to Agno Model instance"""
-        if not self.ai_model or not AGNO_AVAILABLE:
+        if not ai_model or not AGNO_AVAILABLE:
             return None
             
-        provider = self.ai_model.provider.lower()
+        provider = ai_model.provider.lower()
         if provider == "openrouter":
-            base_url = self.ai_model.base_url
-            model_id = self.ai_model.name
+            base_url = ai_model.base_url
+            model_id = ai_model.name
             
             # Fix user-provided OpenRouter URLs that point to the model page
             if base_url and "openrouter.ai" in base_url and not base_url.endswith("/api/v1"):
@@ -54,57 +54,87 @@ class TenantAwareAgent:
 
             return OpenRouter(
                 id=model_id,
-                api_key=self.ai_model.api_key,
+                api_key=ai_model.api_key,
                 base_url=base_url
             )
         elif provider == "openai":
             return OpenAIChat(
-                id=self.ai_model.name,
-                api_key=self.ai_model.api_key,
-                base_url=self.ai_model.base_url
+                id=ai_model.name,
+                api_key=ai_model.api_key,
+                base_url=ai_model.base_url
             )
         elif provider == "anthropic":
             # Potrebbe servire il pacchetto anthropic per Agno
             try:
                 from agno.models.anthropic import Anthropic
                 return Anthropic(
-                    id=self.ai_model.name,
-                    api_key=self.ai_model.api_key,
-                    base_url=self.ai_model.base_url
+                    id=ai_model.name,
+                    api_key=ai_model.api_key,
+                    base_url=ai_model.base_url
                 )
             except ImportError:
                 logger.warning("Agno non supporta Anthropic nativamente in questa versione o manca il pacchetto, fallback a OpenAIChat")
                 return OpenAIChat(
-                    id=self.ai_model.name,
-                    api_key=self.ai_model.api_key,
-                    base_url=self.ai_model.base_url
+                    id=ai_model.name,
+                    api_key=ai_model.api_key,
+                    base_url=ai_model.base_url
                 )
         elif provider == "ollama":
             return Ollama(
-                id=self.ai_model.name,
-                host=self.ai_model.base_url or "http://localhost:11434"
+                id=ai_model.name,
+                host=ai_model.base_url or "http://localhost:11434"
             )
         else:
             # Requisito A3: Supporto universale modelli LLM
             # Se il provider è sconosciuto ma usa compatibilità OpenAI
             logger.info(f"Provider {provider} non riconosciuto nativamente, fallback a OpenAIChat per compatibilità")
             return OpenAIChat(
-                id=self.ai_model.name,
-                api_key=self.ai_model.api_key,
-                base_url=self.ai_model.base_url
+                id=ai_model.name,
+                api_key=ai_model.api_key,
+                base_url=ai_model.base_url
             )
 
-    def _get_agno_tools(self):
+    def _get_agno_tools(self, agent_model):
         """Map string tools from DB to Agno Tool instances"""
         if not AGNO_AVAILABLE:
             return []
             
         tools = []
-        # Support both 'web_search' and checking if it should be added automatically
-        db_tools = self.agent_model.tools or []
-        if "web_search" in db_tools or self.agent_model.name.lower() == "ceo":
-            # the user wants CEO to use web_search, so let's make sure it has it
-            tools.append(DuckDuckGoTools())
+        db_tools = agent_model.tools or []
+        
+        # Support default tools for CEO if empty
+        if not db_tools and agent_model.name.lower() == "ceo":
+            db_tools = ["web_search"]
+            
+        for tool_name in db_tools:
+            tool_name = tool_name.lower().strip()
+            if tool_name in ("web_search", "duckduckgo"):
+                from agno.tools.duckduckgo import DuckDuckGoTools
+                tools.append(DuckDuckGoTools())
+            elif tool_name == "calculator":
+                from agno.tools.calculator import CalculatorTools
+                tools.append(CalculatorTools())
+            elif tool_name == "python":
+                from agno.tools.python import PythonTools
+                tools.append(PythonTools())
+            elif tool_name == "file":
+                from agno.tools.file import FileTools
+                tools.append(FileTools())
+            elif tool_name == "wikipedia":
+                try:
+                    from agno.tools.wikipedia import WikipediaTools
+                    tools.append(WikipediaTools())
+                except ImportError:
+                    logger.warning("WikipediaTools requested but 'wikipedia' package is missing. Run 'pip install wikipedia'")
+            elif tool_name == "yfinance":
+                try:
+                    from agno.tools.yfinance import YFinanceTools
+                    tools.append(YFinanceTools())
+                except ImportError:
+                    logger.warning("YFinanceTools requested but 'yfinance' package is missing. Run 'pip install yfinance'")
+            else:
+                logger.warning(f"Tool '{tool_name}' not supported or recognized.")
+
         return tools
 
     async def arun_stream(self, task: str, input_data: Dict[str, Any]):
@@ -112,8 +142,8 @@ class TenantAwareAgent:
         if not self.ai_model or not AGNO_AVAILABLE:
             raise ValueError("Streaming is only available for native AGNO models")
 
-        model = self._get_agno_model()
-        tools = self._get_agno_tools()
+        model = self._get_agno_model(self.ai_model)
+        tools = self._get_agno_tools(self.agent_model)
         
         # Add current date to instructions to prevent date hallucinations
         d = datetime.now(zoneinfo.ZoneInfo("Europe/Rome"))
@@ -125,13 +155,14 @@ class TenantAwareAgent:
         date_aware_instructions = f"INFO DI SISTEMA: Oggi è {current_date_str}.\n\n{base_instructions}"
         
         agent = AgnoAgent(
-            name=self.agent_model.name,
-            role=self.agent_model.role,
-            instructions=date_aware_instructions,
-            model=model,
-            tools=tools,
-            markdown=True
-        )
+                name=self.agent_model.name,
+                role=self.agent_model.role,
+                instructions=date_aware_instructions,
+                model=model,
+                tools=tools,
+                markdown=True,
+                telemetry=False
+            )
 
         # Build context from input_data if chat history is provided
         # Agno handles this differently natively, but we can prepend it to the task for stateless calls
@@ -146,8 +177,8 @@ class TenantAwareAgent:
     async def _run_with_agno_lib(self, task: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the agent using the official Agno Python library"""
         try:
-            model = self._get_agno_model()
-            tools = self._get_agno_tools()
+            model = self._get_agno_model(self.ai_model)
+            tools = self._get_agno_tools(self.agent_model)
             
             # Add current date to instructions to prevent date hallucinations
             d = datetime.now(zoneinfo.ZoneInfo("Europe/Rome"))
@@ -166,7 +197,8 @@ class TenantAwareAgent:
                 instructions=date_aware_instructions,
                 model=model,
                 tools=tools,
-                markdown=True
+                markdown=True,
+                telemetry=False
             )
             
             # Build chat history if provided
@@ -194,29 +226,28 @@ class TenantAwareAgent:
             loop = asyncio.get_event_loop()
             run_response = await loop.run_in_executor(None, agent.run, full_task)
             
-            content = run_response.content if hasattr(run_response, 'content') else str(run_response)
+            metrics = getattr(run_response, "metrics", None)
+            tokens = 0
+            if metrics:
+                if hasattr(metrics, "total_tokens"):
+                    tokens = metrics.total_tokens
+                elif isinstance(metrics, dict):
+                    tokens = metrics.get("total_tokens", 0)
             
-            # Usage metrics might be available on the model or run_response
-            tokens_used = 0
-            if hasattr(run_response, 'metrics') and run_response.metrics:
-                tokens_used = getattr(run_response.metrics, 'total_tokens', 0)
-                if tokens_used == 0 and hasattr(run_response.metrics, "get"):
-                    tokens_used = run_response.metrics.get("total_tokens", 0)
-                # In tests, metrics might be a dict
-                if tokens_used == 0 and isinstance(run_response.metrics, dict):
-                    tokens_used = run_response.metrics.get("total_tokens", 0)
-                
             logger.info(
                 "Agno library run completed",
                 tenant_id=self.tenant_id,
                 agent_id=self.agent_model.id,
                 model=self.ai_model.name,
-                tokens=tokens_used
+                tokens=tokens
             )
             
+            # Extract response text
+            response_content = run_response.content if hasattr(run_response, "content") else str(run_response)
+            
             return {
-                "output": {"response": content},
-                "tokens_used": tokens_used,
+                "output": {"response": response_content},
+                "tokens_used": tokens,
                 "cost": 0.0
             }
         except Exception as e:
@@ -307,8 +338,109 @@ class TenantAwareTeam:
         self.api_key = api_key
         self.base_url = base_url
 
+    async def _run_with_agno_lib(self, task: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the team using the official Agno Python library"""
+        try:
+            from agno.team.team import Team as AgnoTeam
+            
+            # Create Agno agents for each team member
+            members = []
+            for agent_model in self.team_model.agents:
+                ai_model = agent_model.aimodel
+                
+                # Setup instructions
+                d = datetime.now(zoneinfo.ZoneInfo("Europe/Rome"))
+                giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
+                mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+                current_date_str = f"{giorni[d.weekday()]} {d.day} {mesi[d.month-1]} {d.year}"
+                
+                base_instructions = agent_model.instructions or f"You are a helpful assistant named {agent_model.name}."
+                date_aware_instructions = f"INFO DI SISTEMA: Oggi è {current_date_str}.\n\n{base_instructions}"
+                
+                # To get tools and model, we use a dummy TenantAwareAgent
+                dummy_agent = TenantAwareAgent(
+                    agent_model=agent_model,
+                    tenant_id=self.tenant_id,
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    ai_model=ai_model
+                )
+                
+                agno_model = dummy_agent._get_agno_model(ai_model)
+                agno_tools = dummy_agent._get_agno_tools(agent_model)
+                
+                member = AgnoAgent(
+                    name=agent_model.name,
+                    role=agent_model.role,
+                    instructions=date_aware_instructions,
+                    model=agno_model,
+                    tools=agno_tools,
+                    markdown=True,
+                    telemetry=False
+                )
+                members.append(member)
+            
+            # Create the team
+            team_kwargs = {
+                "name": self.team_model.name,
+                "members": members,
+                "markdown": True,
+                "telemetry": False
+            }
+            
+            # Use the first agent's model for the team orchestrator if available
+            if members and members[0].model:
+                team_kwargs["model"] = members[0].model
+            
+            team = AgnoTeam(**team_kwargs)
+            
+            # Run the team
+            import asyncio
+            loop = asyncio.get_event_loop()
+            run_response = await loop.run_in_executor(None, team.run, task)
+            
+            metrics = getattr(run_response, "metrics", None)
+            tokens = 0
+            if metrics:
+                if hasattr(metrics, "total_tokens"):
+                    tokens = metrics.total_tokens
+                elif isinstance(metrics, dict):
+                    tokens = metrics.get("total_tokens", 0)
+            
+            logger.info(
+                "Agno library team run completed",
+                team_id=self.team_model.id,
+                tenant_id=self.tenant_id,
+                tokens=tokens
+            )
+            
+            # Extract response
+            response_content = run_response.content if hasattr(run_response, "content") else str(run_response)
+            
+            return {
+                "output": {"response": response_content},
+                "tokens_used": tokens,
+                "cost": 0.0  # Optional cost calculation
+            }
+            
+        except Exception as e:
+            logger.error(
+                "Agno library team run failed",
+                tenant_id=self.tenant_id,
+                team_id=self.team_model.id,
+                error=str(e)
+            )
+            return {
+                "output": {"response": f"Error running Agno Team: {str(e)}"},
+                "tokens_used": 0,
+                "cost": 0.0
+            }
+
     async def run(self, task: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute the team via AGNO API"""
+        """Execute the team via API or Agno Library"""
+        if AGNO_AVAILABLE:
+            return await self._run_with_agno_lib(task, input_data)
+        
         # Prepare payload with tenant isolation and team members
         payload = {
             "team_id": f"tenant_{self.tenant_id}_team_{self.team_model.id}",

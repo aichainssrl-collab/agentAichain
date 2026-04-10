@@ -103,7 +103,33 @@ services:
       - ./:/app
     command: celery -A agent_aichain.workers.celery_app flower --port=5555
 
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://api:8000
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - api
+
 volumes:
   postgres_data:
   redis_data:
   neo4j_data:
+  prometheus_data:

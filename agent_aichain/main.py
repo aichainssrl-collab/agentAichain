@@ -7,7 +7,7 @@ import structlog
 from agent_aichain.core.config import settings
 from agent_aichain.core.database import init_db
 from agent_aichain.core.neo4j_db import neo4j_conn
-from agent_aichain.api.middleware.tenant import TenantContextMiddleware
+from agent_aichain.api.versioning import setup_versioning
 
 # Configure structured logging
 structlog.configure(
@@ -58,8 +58,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Tenant Context Middleware (B2)
-app.add_middleware(TenantContextMiddleware)
+# Security Headers Middleware (S1)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "max-age=31536000; includeSubDomains"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+    return response
+
+# API Versioning middleware (B9)
+setup_versioning(app)
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -70,6 +81,48 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error", "error_type": type(exc).__name__}
     )
 
+
+# Prometheus Metrics (O2)
+from prometheus_client import make_asgi_app, Counter, Histogram
+import time
+
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
+
+REQUEST_COUNT = Counter(
+    "http_requests_total", 
+    "Total HTTP Requests", 
+    ["method", "endpoint", "http_status"]
+)
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds", 
+    "HTTP Request Duration", 
+    ["method", "endpoint"]
+)
+
+@app.middleware("http")
+async def prometheus_metrics_middleware(request: Request, call_next):
+    method = request.method
+    # Use path, but avoid high cardinality for dynamic endpoints if possible. 
+    # For now, we use the raw path.
+    path = request.url.path
+    
+    # Don't track metrics for /metrics
+    if path == "/metrics":
+        return await call_next(request)
+        
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    except Exception as e:
+        status_code = 500
+        raise e
+    finally:
+        latency = time.time() - start_time
+        REQUEST_COUNT.labels(method=method, endpoint=path, http_status=status_code).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=path).observe(latency)
 
 # Health check endpoint
 @app.get("/health")
@@ -89,8 +142,9 @@ async def root():
 
 
 # Include API routers
-from agent_aichain.api import auth, agents, teams, runs, api_keys, settings, graph
+from agent_aichain.api import auth, agents, teams, runs, api_keys, settings, graph, dashboard
 
+# Include routers
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")
 app.include_router(teams.router, prefix="/api/v1")
@@ -98,3 +152,4 @@ app.include_router(runs.router, prefix="/api/v1")
 app.include_router(api_keys.router, prefix="/api/v1")
 app.include_router(settings.router, prefix="/api/v1")
 app.include_router(graph.router, prefix="/api/v1")
+app.include_router(dashboard.router, prefix="/api/v1/dashboard")

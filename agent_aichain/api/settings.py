@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from agent_aichain.models import Skill, AIModel
+from agent_aichain.models import Skill, AIModel, Agent
 from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
 from agent_aichain.models import User
@@ -299,6 +299,8 @@ async def update_model(
     }
 
 
+from sqlalchemy.exc import IntegrityError
+
 @router.delete("/models/{model_id}")
 async def delete_model(
     model_id: int,
@@ -310,6 +312,20 @@ async def delete_model(
     model = result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
-    await db.delete(model)
-    await db.commit()
+    
+    try:
+        await db.delete(model)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        # Find which agents are using this model
+        agents_result = await db.execute(select(Agent).where(Agent.aimodel_id == model_id))
+        agents_using_model = agents_result.scalars().all()
+        agent_names = ", ".join([a.name for a in agents_using_model])
+        
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Non è possibile eliminare questo modello perché è in uso dai seguenti agenti: {agent_names}. Modifica prima quegli agenti."
+        )
+        
     return {"message": "Model deleted successfully"}

@@ -5,11 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from agent_aichain.models import Run, Agent, Team, Tenant
 from agent_aichain.core.database import get_db
 from agent_aichain.api.auth import get_current_user
+from agent_aichain.core.rate_limit import TenantRateLimiter
 from agent_aichain.models import User
 from agent_aichain.workers.tasks import run_agent_task, run_team_task
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
+# 60 requests per minute per tenant for runs
+runs_rate_limiter = TenantRateLimiter(max_requests=60, window_seconds=60)
 
 from fastapi.responses import StreamingResponse
 import json
@@ -22,15 +25,14 @@ async def stream_agent_run(
     agent_id: int,
     task: str = Body(...),
     input: Optional[Dict[str, Any]] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(runs_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Execute an agent and stream the response back using SSE"""
     # Verify agent belongs to tenant and fetch model
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()
@@ -103,15 +105,14 @@ async def create_agent_run(
     agent_id: int,
     task: str = Body(...),
     input: Optional[Dict[str, Any]] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(runs_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a run for a specific agent (async via Celery)"""
     # Verify agent belongs to tenant
     result = await db.execute(
         select(Agent).where(
-            Agent.id == agent_id,
-            Agent.tenant_id == current_user.tenant_id
+            Agent.id == agent_id
         )
     )
     agent = result.scalar_one_or_none()
@@ -151,15 +152,14 @@ async def create_team_run(
     team_id: int,
     task: str = Body(...),
     input: Optional[Dict[str, Any]] = Body(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(runs_rate_limiter),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a run for a team of agents (async via Celery)"""
     # Verify team belongs to tenant
     result = await db.execute(
         select(Team).where(
-            Team.id == team_id,
-            Team.tenant_id == current_user.tenant_id
+            Team.id == team_id
         )
     )
     team = result.scalar_one_or_none()
@@ -207,8 +207,7 @@ async def get_run(
     """Get the status and result of a run"""
     result = await db.execute(
         select(Run).where(
-            Run.id == run_id,
-            Run.tenant_id == current_user.tenant_id
+            Run.id == run_id
         )
     )
     run = result.scalar_one_or_none()
